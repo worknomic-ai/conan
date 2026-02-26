@@ -139,18 +139,19 @@ class VCVars:
         winsdk_version = conanfile.conf.get("tools.microsoft:winsdk_version", check_type=str)
         if winsdk_version and not all(c.isdigit() or c == '.' for c in winsdk_version):
             raise ConanException(f"tools.microsoft:winsdk_version '{winsdk_version}' "
-                                 "must be numbers and dots")
+                                 "must only contain digits and dots")
         vcvars = vcvars_command(vs_version, architecture=vcvarsarch, platform_type=None,
                                 winsdk_version=winsdk_version, vcvars_ver=vcvars_ver,
                                 vs_install_path=vs_install_path)
 
+        winsdk_echo = f" - winsdk_version={winsdk_version}" if winsdk_version else ""
         content = textwrap.dedent("""\
             @echo off
             set __VSCMD_ARG_NO_LOGO=1
             set VSCMD_SKIP_SENDTELEMETRY=1
-            echo conanvcvars.bat: Activating environment Visual Studio {} - {} - vcvars_ver={}
+            echo conanvcvars.bat: Activating environment Visual Studio {} - {} - vcvars_ver={}{}
             {}
-            """.format(vs_version, vcvarsarch, vcvars_ver, vcvars))
+            """.format(vs_version, vcvarsarch, vcvars_ver, winsdk_echo, vcvars))
         from conan.tools.env.environment import create_env_script
         create_env_script(conanfile, content, CONAN_VCVARS_FILE, scope)
 
