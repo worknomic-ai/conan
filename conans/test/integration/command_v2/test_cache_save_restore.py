@@ -219,3 +219,49 @@ def test_cache_restore_path_normalization():
     c2.run("cache restore backslashed.tgz")
     c2.run("list *:*#*")
     assert "pkg/1.0" in c2.out
+
+
+def test_cache_save_metadata_normalization():
+    c = TestClient()
+    conanfile = """
+import os
+from conan import ConanFile
+from conan.tools.files import save, mkdir
+class Pkg(ConanFile):
+    name = "pkg"
+    version = "1.0"
+    def package(self):
+        save(self, os.path.join(self.package_folder, "file.txt"), "hello")
+        save(self, os.path.join(self.package_folder, "run.sh"), "echo hello")
+        os.chmod(os.path.join(self.package_folder, "run.sh"), 0o777)
+        mkdir(self, os.path.join(self.package_folder, "subdir"))
+        if os.name != "nt":
+            os.symlink("file.txt", os.path.join(self.package_folder, "link.txt"))
+"""
+    c.save({"conanfile.py": conanfile})
+    c.run("create .")
+    c.run("cache save pkg/1.0")
+    cache_path = os.path.join(c.current_folder, "conan_cache_save.tgz")
+
+    with tarfile.open(cache_path, "r:gz") as tar:
+        for member in tar.getmembers():
+            assert member.uid == 0
+            assert member.gid == 0
+            assert member.mtime == 0
+            assert member.uname == ""
+            assert member.gname == ""
+            if member.isdir():
+                assert member.mode == 0o755
+            elif member.isreg():
+                if member.name.endswith("run.sh") or member.name == "pkglist.json":
+                    # run.sh is 0755, pkglist.json is 0644 (explicitly set)
+                    # Wait, pkglist.json isreg() and it has 0644.
+                    if member.name == "pkglist.json":
+                        assert member.mode == 0o644
+                    else:
+                        assert member.mode == 0o755
+                else:
+                    assert member.mode == 0o644
+            elif member.issym():
+                assert member.mode == 0o755
+                assert "\\" not in member.linkname
