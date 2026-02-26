@@ -1,11 +1,11 @@
 import copy
 import os
-from collections import deque
+from collections import deque, OrderedDict
 
 from conans.client.conanfile.configure import run_configure_method
 from conans.client.graph.graph import DepsGraph, Node, CONTEXT_HOST, \
     CONTEXT_BUILD, TransitiveRequirement, RECIPE_VIRTUAL, RECIPE_EDITABLE
-from conans.client.graph.graph import RECIPE_SYSTEM_TOOL
+from conans.client.graph.graph import RECIPE_SYSTEM_TOOL, RECIPE_PLATFORM
 from conans.client.graph.graph_error import GraphLoopError, GraphConflictError, GraphMissingError, \
     GraphRuntimeError, GraphError
 from conans.client.graph.profile_node_definer import initialize_conanfile_profile
@@ -67,6 +67,32 @@ class DepsGraphBuilder(object):
         #    node -(require)-> previous (creates a diamond with a previously existing node)
         # TODO: allow bootstrapping, use references instead of names
         # print("  Expanding require ", node, "->", require)
+
+        # Apply replace_requires
+        context = CONTEXT_BUILD if require.build else node.context
+        profile = profile_host if context == CONTEXT_HOST else profile_build
+        for pattern, replacement in profile.replace_requires.items():
+            if ref_matches(require.ref, pattern, is_consumer=False):
+                new_ref = RecipeReference.loads(replacement)
+                if require.ref.name != new_ref.name:
+                    # Fix the bug: re-hash the requirement in all containers it belongs to
+                    # We MUST do this before changing require.ref or dicts will be corrupted
+                    old_reqs = list(node.conanfile.requires._requires.items())
+                    old_transitive = list(node.transitive_deps.items())
+                    
+                    require.ref = new_ref
+                    
+                    node.conanfile.requires._requires = OrderedDict()
+                    for k, v in old_reqs:
+                        node.conanfile.requires._requires[v] = v
+                        
+                    node.transitive_deps = OrderedDict()
+                    for k, v in old_transitive:
+                        node.transitive_deps[k] = v
+                else:
+                    require.ref = new_ref
+                break
+
         previous = node.check_downstream_exists(require)
         prev_node = None
         if previous is not None:
@@ -234,6 +260,23 @@ class DepsGraphBuilder(object):
                             require.ref.revision = d.revision
                             return d, ConanFile(str(d)), RECIPE_SYSTEM_TOOL, None
 
+    @staticmethod
+    def _resolved_platform_require(node, require, profile_build, profile_host, resolve_prereleases):
+        context = CONTEXT_BUILD if require.build else node.context
+        profile = profile_host if context == CONTEXT_HOST else profile_build
+        platform_require = profile.platform_requires.get(require.ref.name)
+        if platform_require:
+            version_range = require.version_range
+            if version_range:
+                if version_range.contains(platform_require.version, resolve_prereleases):
+                    require.ref.version = platform_require.version
+                    return platform_require, ConanFile(str(platform_require)), RECIPE_PLATFORM, None
+            elif require.ref.version == platform_require.version:
+                if platform_require.revision is None or require.ref.revision is None or \
+                        platform_require.revision == require.ref.revision:
+                    require.ref.revision = platform_require.revision
+                    return platform_require, ConanFile(str(platform_require)), RECIPE_PLATFORM, None
+
     def _create_new_node(self, node, require, graph, profile_host, profile_build, graph_lock):
         if require.ref.version == "<host_version>":
             if not require.build or require.visible:
@@ -252,6 +295,9 @@ class DepsGraphBuilder(object):
 
         resolved = self._resolved_system_tool(node, require, profile_build, profile_host,
                                               self._resolve_prereleases)
+        if resolved is None:
+            resolved = self._resolved_platform_require(node, require, profile_build, profile_host,
+                                                       self._resolve_prereleases)
 
         if resolved is None:
             try:
@@ -269,7 +315,7 @@ class DepsGraphBuilder(object):
         if recipe_status == RECIPE_EDITABLE:
             recipe_metadata = os.path.join(dep_conanfile.recipe_folder, "metadata")
             dep_conanfile.folders.set_base_recipe_metadata(recipe_metadata)
-        elif recipe_status != RECIPE_SYSTEM_TOOL:
+        elif recipe_status not in (RECIPE_SYSTEM_TOOL, RECIPE_PLATFORM):
             recipe_metadata = self._cache.recipe_layout(new_ref).metadata()
             dep_conanfile.folders.set_base_recipe_metadata(recipe_metadata)
         # If the node is virtual or a test package, the require is also "root"

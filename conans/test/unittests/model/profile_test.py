@@ -130,5 +130,6 @@ def test_profile_serialize():
     expected_json = '{"settings": {"arch": "x86_64", "compiler": "Visual Studio", "compiler.version": "12"}, ' \
                     '"package_settings": {"MyPackage": {"os": "Windows"}}, ' \
                     '"options": {}, "tool_requires": {"*": ["zlib/1.2.8"]}, ' \
+                    '"replace_requires": {}, "platform_requires": {}, ' \
                     '"conf": {"user.myfield:value": "MyVal"}, "build_env": "VAR1=1\\nVAR2=2\\n"}'
     assert expected_json == json.dumps(profile.serialize())

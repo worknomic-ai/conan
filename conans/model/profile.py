@@ -18,6 +18,8 @@ class Profile(object):
         self.options = Options()
         self.tool_requires = OrderedDict()  # ref pattern: list of ref
         self.system_tools = []
+        self.replace_requires = OrderedDict()
+        self.platform_requires = {}
         self.conf = ConfDefinition()
         self.buildenv = ProfileEnvironment()
         self.runenv = ProfileEnvironment()
@@ -32,10 +34,13 @@ class Profile(object):
     def serialize(self):
         # TODO: Remove it seems dead
         return {
-            "settings": self.settings,
-            "package_settings": self.package_settings,
+            "settings": dict(self.settings),
+            "package_settings": {pkg: dict(settings) for pkg, settings in self.package_settings.items()},
             "options": self.options.serialize(),
-            "tool_requires": self.tool_requires,
+            "tool_requires": {pattern: [str(r) for r in reqs]
+                             for pattern, reqs in self.tool_requires.items()},
+            "replace_requires": {str(k): str(v) for k, v in self.replace_requires.items()},
+            "platform_requires": {str(k): str(v) for k, v in self.platform_requires.items()},
             "conf": self.conf.serialize(),
             # FIXME: Perform a serialize method for ProfileEnvironment
             "build_env": self.buildenv.dumps()
@@ -75,6 +80,15 @@ class Profile(object):
         if self.system_tools:
             result.append("[system_tools]")
             result.extend(str(t) for t in self.system_tools)
+
+        if self.replace_requires:
+            result.append("[replace_requires]")
+            for old_ref, new_ref in self.replace_requires.items():
+                result.append("%s: %s" % (old_ref, new_ref))
+
+        if self.platform_requires:
+            result.append("[platform_requires]")
+            result.extend(str(r) for r in self.platform_requires.values())
 
         if self.conf:
             result.append("[conf]")
@@ -116,6 +130,10 @@ class Profile(object):
         current_system_tools = {r.name: r for r in self.system_tools}
         current_system_tools.update({r.name: r for r in other.system_tools})
         self.system_tools = list(current_system_tools.values())
+
+        self.replace_requires.update(other.replace_requires)
+        self.platform_requires.update(other.platform_requires)
+
         self.conf.update_conf_definition(other.conf)
         self.buildenv.update_profile_env(other.buildenv)  # Profile composition, last has priority
         self.runenv.update_profile_env(other.runenv)
