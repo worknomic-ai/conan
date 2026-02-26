@@ -1,6 +1,6 @@
 import copy
 import os
-from collections import deque
+from collections import deque, OrderedDict
 
 from conans.client.conanfile.configure import run_configure_method
 from conans.client.graph.graph import DepsGraph, Node, CONTEXT_HOST, \
@@ -73,7 +73,24 @@ class DepsGraphBuilder(object):
         profile = profile_host if context == CONTEXT_HOST else profile_build
         for pattern, replacement in profile.replace_requires.items():
             if ref_matches(require.ref, pattern, is_consumer=False):
-                require.ref = RecipeReference.loads(replacement)
+                new_ref = RecipeReference.loads(replacement)
+                if require.ref.name != new_ref.name:
+                    # Fix the bug: re-hash the requirement in all containers it belongs to
+                    # We MUST do this before changing require.ref or dicts will be corrupted
+                    old_reqs = list(node.conanfile.requires._requires.items())
+                    old_transitive = list(node.transitive_deps.items())
+                    
+                    require.ref = new_ref
+                    
+                    node.conanfile.requires._requires = OrderedDict()
+                    for k, v in old_reqs:
+                        node.conanfile.requires._requires[v] = v
+                        
+                    node.transitive_deps = OrderedDict()
+                    for k, v in old_transitive:
+                        node.transitive_deps[k] = v
+                else:
+                    require.ref = new_ref
                 break
 
         previous = node.check_downstream_exists(require)
