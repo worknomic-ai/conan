@@ -136,8 +136,12 @@ class VCVars:
         # C:\Program Files (x86)\Microsoft Visual Studio\2019\Community
         # C:\Program Files (x86)\Microsoft Visual Studio\2017\Community
         # C:\Program Files (x86)\Microsoft Visual Studio 14.0
+        winsdk_version = conanfile.conf.get("tools.microsoft:winsdk_version", check_type=str)
+        if winsdk_version and not all(c.isdigit() or c == '.' for c in winsdk_version):
+            raise ConanException(f"tools.microsoft:winsdk_version '{winsdk_version}' "
+                                 "must be numbers and dots")
         vcvars = vcvars_command(vs_version, architecture=vcvarsarch, platform_type=None,
-                                winsdk_version=None, vcvars_ver=vcvars_ver,
+                                winsdk_version=winsdk_version, vcvars_ver=vcvars_ver,
                                 vs_install_path=vs_install_path)
 
         content = textwrap.dedent("""\
