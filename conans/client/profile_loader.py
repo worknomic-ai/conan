@@ -220,12 +220,15 @@ class _ProfileValueParser(object):
         # Trying to strip comments might be problematic if things contain #
         doc = ConfigParser(profile_text, allowed_fields=["tool_requires", "system_tools",
                                                          "settings",
-                                                         "options", "conf", "buildenv", "runenv"])
+                                                         "options", "conf", "buildenv", "runenv",
+                                                         "replace_requires", "platform_requires"])
 
         # Parse doc sections into Conan model, Settings, Options, etc
         settings, package_settings = _ProfileValueParser._parse_settings(doc)
         options = Options.loads(doc.options) if doc.options else None
         tool_requires = _ProfileValueParser._parse_tool_requires(doc)
+        replace_requires = _ProfileValueParser._parse_replace_requires(doc)
+        platform_requires = _ProfileValueParser._parse_platform_requires(doc)
 
         if doc.system_tools:
             system_tools = [RecipeReference.loads(r.strip())
@@ -256,6 +259,12 @@ class _ProfileValueParser(object):
             current_dict = {r.name: r for r in current}
             current_dict.update({r.name: r for r in refs})
             current[:] = list(current_dict.values())
+
+        base_profile.replace_requires.update(replace_requires)
+        current_platform_requires = {r.name: r for r in base_profile.platform_requires}
+        current_platform_requires.update({r.name: r for r in platform_requires})
+        base_profile.platform_requires = list(current_platform_requires.values())
+
         if options is not None:
             base_profile.options.update_options(options)
         if conf is not None:
@@ -280,6 +289,30 @@ class _ProfileValueParser(object):
                 refs = [RecipeReference.loads(r.strip()) for r in req_list.split(",")]
                 result.setdefault(pattern, []).extend(refs)
         return result
+
+    @staticmethod
+    def _parse_replace_requires(doc):
+        result = OrderedDict()
+        if doc.replace_requires:
+            for line in doc.replace_requires.splitlines():
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                tokens = line.split(":", 1)
+                if len(tokens) != 2:
+                    raise ConanException(f"Invalid replace_requires line '{line}'")
+                old_ref = RecipeReference.loads(tokens[0].strip())
+                new_ref = RecipeReference.loads(tokens[1].strip())
+                result[old_ref] = new_ref
+        return result
+
+    @staticmethod
+    def _parse_platform_requires(doc):
+        if doc.platform_requires:
+            return [RecipeReference.loads(r.strip())
+                    for r in doc.platform_requires.splitlines()
+                    if r.strip() and not r.strip().startswith("#")]
+        return []
 
     @staticmethod
     def _parse_settings(doc):

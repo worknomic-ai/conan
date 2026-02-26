@@ -15,6 +15,7 @@ RECIPE_EDITABLE = "Editable"
 RECIPE_CONSUMER = "Consumer"  # A conanfile from the user
 RECIPE_VIRTUAL = "Cli"  # A virtual conanfile (dynamic in memory conanfile)
 RECIPE_SYSTEM_TOOL = "System tool"
+RECIPE_PLATFORM = "Platform"
 
 BINARY_CACHE = "Cache"
 BINARY_DOWNLOAD = "Download"
@@ -26,6 +27,7 @@ BINARY_EDITABLE = "Editable"
 BINARY_EDITABLE_BUILD = "EditableBuild"
 BINARY_INVALID = "Invalid"
 BINARY_SYSTEM_TOOL = "System tool"
+BINARY_PLATFORM = "Platform"
 
 CONTEXT_HOST = "host"
 CONTEXT_BUILD = "build"
