@@ -2,7 +2,7 @@ from conan.internal.conan_app import ConanApp
 from conan.internal.deploy import do_deploys
 from conans.client.generators import write_generators
 from conans.client.installer import BinaryInstaller
-from conans.errors import ConanInvalidConfiguration
+from conans.errors import ConanInvalidConfiguration, conanfile_exception_formatter
 
 
 class InstallAPI:
@@ -64,6 +64,9 @@ class InstallAPI:
         if deploy:
             base_folder = deploy_folder or conanfile.folders.base_build
             do_deploys(self.conan_api, deps_graph, deploy, base_folder)
+
+        with conanfile_exception_formatter(conanfile, "deploy"):
+            conanfile.deploy()
 
         conanfile.generators = list(set(conanfile.generators).union(generators or []))
         app = ConanApp(self.conan_api.cache_folder, self.conan_api.config.global_conf)

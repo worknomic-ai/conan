@@ -341,6 +341,9 @@ class ConanFile:
 
         return retcode
 
+    def deploy(self):
+        pass
+
     def __repr__(self):
         return self.display_name
 
