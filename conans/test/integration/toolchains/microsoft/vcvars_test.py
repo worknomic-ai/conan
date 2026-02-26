@@ -107,3 +107,28 @@ def test_vcvars_platform_x86():
     vcvars = client.load("conanvcvars.bat")
     assert 'vcvarsall.bat"  x86_amd64' in vcvars
     assert "-vcvars_ver" not in vcvars
+
+
+@pytest.mark.skipif(platform.system() != "Windows", reason="Requires Windows")
+def test_vcvars_winsdk_version():
+    client = TestClient(path_with_spaces=False)
+    conanfile = GenConanfile().with_generator("VCVars").with_settings("os", "compiler", "arch", "build_type")
+    client.save({"conanfile.py": conanfile})
+    client.run('install . -s os=Windows -s compiler="msvc" -s compiler.version=191 '
+               '-s compiler.cppstd=14 -s compiler.runtime=static '
+               '-c tools.microsoft:winsdk_version=10.0.19041.0')
+
+    vcvars = client.load("conanvcvars.bat")
+    assert 'vcvarsall.bat"  amd64 10.0.19041.0 -vcvars_ver=14.1' in vcvars
+    assert "winsdk_version=10.0.19041.0" in vcvars
+
+
+@pytest.mark.skipif(platform.system() != "Windows", reason="Requires Windows")
+def test_vcvars_winsdk_version_invalid():
+    client = TestClient(path_with_spaces=False)
+    conanfile = GenConanfile().with_generator("VCVars").with_settings("os", "compiler", "arch", "build_type")
+    client.save({"conanfile.py": conanfile})
+    client.run('install . -s os=Windows -s compiler="msvc" -s compiler.version=191 '
+               '-s compiler.cppstd=14 -s compiler.runtime=static '
+               '-c tools.microsoft:winsdk_version=10.0.19041.0-beta', assert_error=True)
+    assert "tools.microsoft:winsdk_version '10.0.19041.0-beta' must only contain digits and dots" in client.out
