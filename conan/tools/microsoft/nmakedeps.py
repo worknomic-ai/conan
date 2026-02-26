@@ -52,7 +52,7 @@ class NMakeDeps(object):
                     macro, value = define.split("=", 1)
                     if value and not value.isnumeric():
                         value = f'\\"{value}\\"'
-                    define = f"{macro}#{value}"
+                    define = f"{macro}#{value}".replace("=", "#")
                 return f"/D{define}"
 
             cl_flags = [f'-I"{p}"' for p in cpp_info.includedirs or []]
