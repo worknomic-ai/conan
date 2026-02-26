@@ -50,6 +50,7 @@ class CMake(object):
         self._cache_variables = configure_preset["cacheVariables"]
 
         self._cmake_program = conanfile.conf.get("tools.cmake:cmake_program", default="cmake")
+        self._ctest_program = conanfile.conf.get("tools.cmake:ctest_program", default="ctest")
 
     def configure(self, variables=None, build_script_folder=None, cli_args=None):
         """
@@ -257,9 +258,7 @@ class CMake(object):
         if not bt:
             raise ConanException("build_type setting should be defined.")
 
-        ctest_program = self._conanfile.conf.get("tools.cmake:ctest_program", default="ctest")
-
-        arg_list = [ctest_program]
+        arg_list = [self._ctest_program]
         if is_multi and bt:
             arg_list.extend(["--build-config", bt])
 
