@@ -112,7 +112,7 @@ class ConanArgumentParser(argparse.ArgumentParser):
             ConanOutput.define_log_level(v)
         except ConanException:
             if is_env:
-                raise ConanException(f"Invalid CONAN_LOG_LEVEL: {v}")
+                raise ConanException(f'Invalid CONAN_LOG_LEVEL="{v}"')
             raise
         return args
 
