@@ -1,6 +1,8 @@
 import json
 import os
 import shutil
+import tarfile
+from io import BytesIO
 
 from conans.test.assets.genconanfile import GenConanfile
 from conans.test.utils.tools import TestClient
@@ -144,3 +146,122 @@ def test_cache_save_restore_graph():
     c2.run("list *:*#*")
     assert "pkg/0.1" in c2.out
     assert "dep/0.1" in c2.out
+
+
+def test_cache_save_path_normalization():
+    c = TestClient()
+    c.save({"conanfile.py": GenConanfile()})
+    c.run("create . --name=pkg --version=1.0")
+    c.run("cache save pkg/1.0")
+    cache_path = os.path.join(c.current_folder, "conan_cache_save.tgz")
+
+    with tarfile.open(cache_path, "r:gz") as tar:
+        for member in tar.getmembers():
+            assert "\\" not in member.name
+            if member.name == "pkglist.json":
+                f = tar.extractfile(member)
+                assert f is not None
+                pkglist = json.loads(f.read().decode())
+                # Check that folders in pkglist.json also use forward slashes
+                for ref_data in pkglist.values():
+                    for rev_data in ref_data.get("revisions", {}).values():
+                        assert "\\" not in rev_data.get("recipe_folder", "")
+                        for pref_data in rev_data.get("packages", {}).values():
+                            assert "\\" not in pref_data.get("package_folder", "")
+                            if "metadata_folder" in pref_data:
+                                assert "\\" not in pref_data.get("metadata_folder", "")
+
+
+def test_cache_restore_path_normalization():
+    c = TestClient()
+    c.save({"conanfile.py": GenConanfile()})
+    c.run("create . --name=pkg --version=1.0")
+    c.run("cache save pkg/1.0")
+    cache_path = os.path.join(c.current_folder, "conan_cache_save.tgz")
+
+    # Create a new archive with backslashes
+    backslashed_cache_path = os.path.join(c.current_folder, "backslashed.tgz")
+    with tarfile.open(cache_path, "r:gz") as src_tar:
+        with tarfile.open(backslashed_cache_path, "w:gz") as dst_tar:
+            for member in src_tar.getmembers():
+                if member.name == "pkglist.json":
+                    f = src_tar.extractfile(member)
+                    assert f is not None
+                    pkglist = json.loads(f.read().decode())
+                    # Inject backslashes in pkglist
+                    for ref_data in pkglist.values():
+                        for rev_data in ref_data.get("revisions", {}).values():
+                            if "recipe_folder" in rev_data:
+                                rev_data["recipe_folder"] = rev_data["recipe_folder"].replace("/", "\\")
+                            for pref_data in rev_data.get("packages", {}).values():
+                                if "package_folder" in pref_data:
+                                    pref_data["package_folder"] = pref_data["package_folder"].replace("/", "\\")
+                                if "metadata_folder" in pref_data:
+                                    pref_data["metadata_folder"] = pref_data["metadata_folder"].replace("/", "\\")
+
+                    data = json.dumps(pkglist).encode("utf-8")
+                    new_member = tarfile.TarInfo(name="pkglist.json")
+                    new_member.size = len(data)
+                    dst_tar.addfile(new_member, BytesIO(data))
+                else:
+                    # Inject backslashes in member name
+                    if member.isfile():
+                        f = src_tar.extractfile(member)
+                        member.name = member.name.replace("/", "\\")
+                        dst_tar.addfile(member, f)
+                    else:
+                        member.name = member.name.replace("/", "\\")
+                        dst_tar.addfile(member)
+
+    # Now try to restore
+    c2 = TestClient()
+    shutil.copy2(backslashed_cache_path, c2.current_folder)
+    c2.run("cache restore backslashed.tgz")
+    c2.run("list *:*#*")
+    assert "pkg/1.0" in c2.out
+
+
+def test_cache_save_metadata_normalization():
+    c = TestClient()
+    conanfile = """
+import os
+from conan import ConanFile
+from conan.tools.files import save, mkdir
+class Pkg(ConanFile):
+    name = "pkg"
+    version = "1.0"
+    def package(self):
+        save(self, os.path.join(self.package_folder, "file.txt"), "hello")
+        save(self, os.path.join(self.package_folder, "run.sh"), "echo hello")
+        os.chmod(os.path.join(self.package_folder, "run.sh"), 0o777)
+        mkdir(self, os.path.join(self.package_folder, "subdir"))
+        if os.name != "nt":
+            os.symlink("file.txt", os.path.join(self.package_folder, "link.txt"))
+"""
+    c.save({"conanfile.py": conanfile})
+    c.run("create .")
+    c.run("cache save pkg/1.0")
+    cache_path = os.path.join(c.current_folder, "conan_cache_save.tgz")
+
+    with tarfile.open(cache_path, "r:gz") as tar:
+        for member in tar.getmembers():
+            assert member.uid == 0
+            assert member.gid == 0
+            assert member.mtime == 0
+            assert member.uname == ""
+            assert member.gname == ""
+            if member.isdir():
+                assert member.mode == 0o755
+            elif member.isreg():
+                if member.name.endswith("run.sh") or member.name == "pkglist.json":
+                    # run.sh is 0755, pkglist.json is 0644 (explicitly set)
+                    # Wait, pkglist.json isreg() and it has 0644.
+                    if member.name == "pkglist.json":
+                        assert member.mode == 0o644
+                    else:
+                        assert member.mode == 0o755
+                else:
+                    assert member.mode == 0o644
+            elif member.issym():
+                assert member.mode == 0o755
+                assert "\\" not in member.linkname
