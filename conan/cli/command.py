@@ -3,6 +3,7 @@ import textwrap
 
 from conan.api.output import ConanOutput
 from conan.errors import ConanException
+from conans.util.env import get_env
 
 
 class OnceArgument(argparse.Action):
@@ -45,7 +46,7 @@ class BaseConanCommand:
 
     @staticmethod
     def _init_log_levels(parser):
-        parser.add_argument("-v", default="status", nargs='?',
+        parser.add_argument("-v", default="not_set", nargs='?',
                             help="Level of detail of the output. Valid options from less verbose "
                                  "to more verbose: -vquiet, -verror, -vwarning, -vnotice, -vstatus, "
                                  "-v or -vverbose, -vv or -vdebug, -vvv or -vtrace")
@@ -100,8 +101,19 @@ class ConanArgumentParser(argparse.ArgumentParser):
         super().__init__(*args, **kwargs)
 
     def parse_args(self, args=None, namespace=None):
-        args = super().parse_args(args)
-        ConanOutput.define_log_level(args.v)
+        args = super().parse_args(args, namespace=namespace)
+        v = args.v
+        is_env = False
+        if v == "not_set":
+            v = get_env("CONAN_LOG_LEVEL", "status")
+            is_env = True
+
+        try:
+            ConanOutput.define_log_level(v)
+        except ConanException:
+            if is_env:
+                raise ConanException(f"Invalid CONAN_LOG_LEVEL: {v}")
+            raise
         return args
 
 
