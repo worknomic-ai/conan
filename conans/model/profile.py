@@ -34,12 +34,13 @@ class Profile(object):
     def serialize(self):
         # TODO: Remove it seems dead
         return {
-            "settings": self.settings,
-            "package_settings": self.package_settings,
+            "settings": dict(self.settings),
+            "package_settings": {pkg: dict(settings) for pkg, settings in self.package_settings.items()},
             "options": self.options.serialize(),
-            "tool_requires": self.tool_requires,
-            "replace_requires": self.replace_requires,
-            "platform_requires": self.platform_requires,
+            "tool_requires": {pattern: [str(r) for r in reqs]
+                             for pattern, reqs in self.tool_requires.items()},
+            "replace_requires": {str(k): str(v) for k, v in self.replace_requires.items()},
+            "platform_requires": [str(r) for r in self.platform_requires],
             "conf": self.conf.serialize(),
             # FIXME: Perform a serialize method for ProfileEnvironment
             "build_env": self.buildenv.dumps()
