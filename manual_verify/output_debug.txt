@@ -1,0 +1,2 @@
+conanfile.py (test/0.1): Calling source() in /tmp/hivolve/36f402c4-80d/member-f69bbab1-933/manual_verify
+conanfile.py (test/0.1): MY STATUS MESSAGE
