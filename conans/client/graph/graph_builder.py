@@ -5,7 +5,7 @@ from collections import deque
 from conans.client.conanfile.configure import run_configure_method
 from conans.client.graph.graph import DepsGraph, Node, CONTEXT_HOST, \
     CONTEXT_BUILD, TransitiveRequirement, RECIPE_VIRTUAL, RECIPE_EDITABLE
-from conans.client.graph.graph import RECIPE_SYSTEM_TOOL
+from conans.client.graph.graph import RECIPE_SYSTEM_TOOL, RECIPE_PLATFORM
 from conans.client.graph.graph_error import GraphLoopError, GraphConflictError, GraphMissingError, \
     GraphRuntimeError, GraphError
 from conans.client.graph.profile_node_definer import initialize_conanfile_profile
@@ -234,7 +234,32 @@ class DepsGraphBuilder(object):
                             require.ref.revision = d.revision
                             return d, ConanFile(str(d)), RECIPE_SYSTEM_TOOL, None
 
+    @staticmethod
+    def _resolved_platform_require(node, require, profile_build, profile_host, resolve_prereleases):
+        context = CONTEXT_BUILD if require.build else node.context
+        profile = profile_host if context == CONTEXT_HOST else profile_build
+        for platform_require in profile.platform_requires:
+            if require.ref.name == platform_require.name:
+                version_range = require.version_range
+                if version_range:
+                    if version_range.contains(platform_require.version, resolve_prereleases):
+                        require.ref.version = platform_require.version
+                        return platform_require, ConanFile(str(platform_require)), RECIPE_PLATFORM, None
+                elif require.ref.version == platform_require.version:
+                    if platform_require.revision is None or require.ref.revision is None or \
+                            platform_require.revision == require.ref.revision:
+                        require.ref.revision = platform_require.revision
+                        return platform_require, ConanFile(str(platform_require)), RECIPE_PLATFORM, None
+
     def _create_new_node(self, node, require, graph, profile_host, profile_build, graph_lock):
+        # Apply replace_requires
+        context = CONTEXT_BUILD if require.build else node.context
+        profile = profile_host if context == CONTEXT_HOST else profile_build
+        for pattern, replacement in profile.replace_requires.items():
+            if ref_matches(require.ref, pattern, is_consumer=False):
+                require.ref = RecipeReference.loads(replacement)
+                break
+
         if require.ref.version == "<host_version>":
             if not require.build or require.visible:
                 raise ConanException(f"{node.ref} require '{require.ref}': 'host_version' can only "
@@ -252,6 +277,9 @@ class DepsGraphBuilder(object):
 
         resolved = self._resolved_system_tool(node, require, profile_build, profile_host,
                                               self._resolve_prereleases)
+        if resolved is None:
+            resolved = self._resolved_platform_require(node, require, profile_build, profile_host,
+                                                       self._resolve_prereleases)
 
         if resolved is None:
             try:
