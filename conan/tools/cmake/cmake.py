@@ -110,8 +110,8 @@ class CMake(object):
         if cli_args:
             arg_list.extend(cli_args)
 
-        command = " ".join(arg_list)
-        with chdir(self, build_folder):
+        command = cmd_args_to_string(arg_list)
+        with chdir(self._conanfile, build_folder):
             self._conanfile.run(command)
 
     def _build(self, build_type=None, target=None, cli_args=None, build_tool_args=None, env=""):
