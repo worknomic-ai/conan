@@ -67,6 +67,11 @@ class _LockRequires:
     def sort(self):
         self._requires = OrderedDict(reversed(sorted(self._requires.items())))
 
+    def remove(self, ref):
+        to_remove = [r for r in self._requires if r == ref]
+        for r in to_remove:
+            self._requires.pop(r)
+
     def merge(self, other):
         """
         :type other: _LockRequires
@@ -169,6 +174,20 @@ class Lockfile(object):
         if python_requires:
             for r in python_requires:
                 self._python_requires.add(r)
+            self._python_requires.sort()
+
+    def remove(self, requires=None, build_requires=None, python_requires=None):
+        if requires:
+            for r in requires:
+                self._requires.remove(r)
+            self._requires.sort()
+        if build_requires:
+            for r in build_requires:
+                self._build_requires.remove(r)
+            self._build_requires.sort()
+        if python_requires:
+            for r in python_requires:
+                self._python_requires.remove(r)
             self._python_requires.sort()
 
     @staticmethod
