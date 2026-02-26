@@ -48,17 +48,20 @@ class TestGraphExplain:
         client.run("lock create --requires=pkg/0.1 --lockfile-out=conan.lock")
         
         client.run("graph explain consumer.py --lockfile=conan.lock")
-        # In Conan 2.x, the lockfile will override the requirement pkg/[>=0.1] to pkg/0.1
-        assert "pkg/0.1" in client.out
-        # It should report it as a resolution
-        # Let's check if it reports "Resolved version ranges" or similar
-        # Since I am not sure about the exact wording for lockfile, 
-        # but the acceptance criteria says it should explain it.
-        # Actually, let's just assert it is using the locked version and not the latest 0.2
+        # When using a lockfile, the version is locked
         assert "pkg/0.1" in client.out
         assert "pkg/0.2" not in client.out
 
+    def test_graph_explain_range(self):
+        client = TestClient()
+        client.save({"conanfile.py": "from conan import ConanFile\nclass Pkg(ConanFile): pass"})
+        client.run("create . --name=pkg --version=0.1")
+        client.run("graph explain --requires=pkg/[>0.0]")
+        assert "Resolved version ranges:" in client.out
+        assert "pkg/[>0.0] -> pkg/0.1" in client.out
+
     def test_graph_explain_compatible(self):
+
         client = TestClient()
         # Create a package with a specific setting
         client.save({"conanfile.py": textwrap.dedent("""
@@ -85,3 +88,42 @@ class TestGraphExplain:
         assert "Compatible" in client.out
         # In Conan 2.x, the output of graph explain shows the status of compatible check
         assert "Cache" in client.out
+
+    def test_graph_explain_invalid(self):
+        client = TestClient()
+        client.save({"conanfile.py": textwrap.dedent("""
+            from conan import ConanFile
+            from conan.errors import ConanInvalidConfiguration
+            class Pkg(ConanFile):
+                name = "pkg"
+                version = "0.1"
+                settings = "os"
+                def validate(self):
+                    if self.settings.os == "Windows":
+                        raise ConanInvalidConfiguration("Windows is not supported!")
+        """)})
+        client.run("create . -s os=Linux")
+        client.run("graph explain --requires=pkg/0.1 -s os=Windows")
+        assert "pkg/0.1" in client.out
+        assert "Binary: Invalid" in client.out
+        assert "Invalid configuration: Windows is not supported!" in client.out
+
+    def test_graph_explain_validate_build(self):
+        client = TestClient()
+        client.save({"conanfile.py": textwrap.dedent("""
+            from conan import ConanFile
+            from conan.errors import ConanInvalidConfiguration
+            class Pkg(ConanFile):
+                name = "pkg"
+                version = "0.1"
+                settings = "os"
+                def validate_build(self):
+                    if self.settings.os == "Windows":
+                        raise ConanInvalidConfiguration("Cannot build on Windows!")
+        """)})
+        client.run("export .")
+        client.run("graph explain --requires=pkg/0.1 -s os=Windows --build=missing")
+        assert "pkg/0.1" in client.out
+        assert "Binary: Invalid" in client.out
+        assert "Invalid build: Cannot build on Windows!" in client.out
+
