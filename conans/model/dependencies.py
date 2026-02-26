@@ -25,6 +25,15 @@ class UserRequirementsDict(object):
     def __bool__(self):
         return bool(self._data)
 
+    def __contains__(self, ref):
+        try:
+            self._get(ref)
+            return True
+        except KeyError:
+            return False
+        except ConanException:
+            return True
+
     def get(self, ref, build=None, **kwargs):
         return self._get(ref, build, **kwargs)[1]
 
@@ -38,7 +47,12 @@ class UserRequirementsDict(object):
             kwargs["build"] = build
         data = self.filter(kwargs)
         ret = []
-        if "/" in ref:
+
+        if isinstance(ref, RecipeReference):
+            for require, value in data.items():
+                if require.ref == ref:
+                    ret.append((require, value))
+        elif isinstance(ref, str) and "/" in ref:
             # FIXME: Validate reference
             ref = RecipeReference.loads(ref)
             for require, value in data.items():
