@@ -119,6 +119,16 @@ class CacheAPI:
             tarinfo.name = tarinfo.name.replace("\\", "/")
             if tarinfo.linkname:
                 tarinfo.linkname = tarinfo.linkname.replace("\\", "/")
+            tarinfo.uid = tarinfo.gid = 0
+            tarinfo.uname = tarinfo.gname = ""
+            tarinfo.mtime = 0
+            if tarinfo.isdir():
+                tarinfo.mode = 0o755
+            else:
+                if tarinfo.mode & 0o111:
+                    tarinfo.mode = 0o755
+                else:
+                    tarinfo.mode = 0o644
             return tarinfo
 
         with open(tgz_path, "wb") as tgz_handle:
@@ -147,6 +157,10 @@ class CacheAPI:
             info = tarfile.TarInfo(name="pkglist.json")
             data = serialized.encode('utf-8')
             info.size = len(data)
+            info.mtime = 0
+            info.mode = 0o644
+            info.uid = info.gid = 0
+            info.uname = info.gname = ""
             tgz.addfile(tarinfo=info, fileobj=BytesIO(data))
             tgz.close()
 
@@ -154,6 +168,8 @@ class CacheAPI:
         with open(path, mode='rb') as file_handler:
             the_tar = tarfile.open(fileobj=file_handler)
             fileobj = the_tar.extractfile("pkglist.json")
+            if fileobj is None:
+                raise ConanException("pkglist.json not found in archive")
             pkglist = fileobj.read()
             the_tar.extractall(path=self.conan_api.cache_folder)
             the_tar.close()
