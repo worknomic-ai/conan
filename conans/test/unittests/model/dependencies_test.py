@@ -33,4 +33,6 @@ def test_user_requirements_dict_contains():
     assert "pkg/1.0" in urd
     assert ref1 in urd
     assert "other" not in urd
+    assert "pkg/" not in urd
+    assert "other/1.0/2.0" not in urd
     assert 123 not in urd

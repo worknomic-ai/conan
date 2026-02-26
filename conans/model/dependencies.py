@@ -28,6 +28,11 @@ class UserRequirementsDict(object):
     def __contains__(self, ref):
         if not isinstance(ref, (str, RecipeReference)):
             return False
+        if isinstance(ref, str) and "/" in ref:
+            try:
+                RecipeReference.loads(ref)
+            except ConanException:
+                return False
         try:
             self._get(ref)
             return True
