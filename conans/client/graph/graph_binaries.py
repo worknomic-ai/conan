@@ -59,9 +59,13 @@ class GraphBinariesAnalyzer(object):
                 info = node.conanfile.info
                 latest_pref = self._remote_manager.get_latest_package_reference(pref, r, info)
                 results.append({'pref': latest_pref, 'remote': r})
+                node.binary_history.append({"action": "remote_check", "remote": r.name,
+                                            "status": "found", "package_id": pref.package_id})
                 if len(results) > 0 and not update:
                     break
             except NotFoundException:
+                node.binary_history.append({"action": "remote_check", "remote": r.name,
+                                            "status": "not found", "package_id": pref.package_id})
                 pass
 
         if not remotes and update:
@@ -91,6 +95,7 @@ class GraphBinariesAnalyzer(object):
             node.binary_remote = previous_node.binary_remote
             node.prev = previous_node.prev
             node.pref_timestamp = previous_node.pref_timestamp
+            node.binary_history = previous_node.binary_history
 
             # this line fixed the compatible_packages with private case.
             # https://github.com/conan-io/conan/issues/9880
@@ -112,6 +117,8 @@ class GraphBinariesAnalyzer(object):
         if not compatibles:
             return
 
+        node.binary_history.append({"action": "compatible_packages", "status": "start", "cause": "main binary missing"})
+
         def _compatible_found(pkg_id, compatible_pkg):
             diff = conanfile.info.dump_diff(compatible_pkg)
             conanfile.output.info(f"Main binary package '{original_package_id}' missing. Using "
@@ -132,6 +139,8 @@ class GraphBinariesAnalyzer(object):
             node._package_id = package_id  # Modifying package id under the hood, FIXME
             node.binary = None  # Invalidate it
             self._process_compatible_node(node, remotes, update)  # TODO: what if BINARY_BUILD
+            node.binary_history.append({"action": "compatible_check", "package_id": package_id,
+                                        "status": node.binary})
             if node.binary in (BINARY_CACHE, BINARY_UPDATE, BINARY_DOWNLOAD):
                 _compatible_found(package_id, compatible_package)
                 return
@@ -143,6 +152,8 @@ class GraphBinariesAnalyzer(object):
                 node._package_id = package_id  # Modifying package id under the hood, FIXME
                 node.binary = None  # Invalidate it
                 self._evaluate_download(node, remotes, update)
+                node.binary_history.append({"action": "compatible_check", "package_id": package_id,
+                                            "status": node.binary})
                 if node.binary == BINARY_DOWNLOAD:
                     _compatible_found(package_id, compatible_package)
                     return

@@ -6,6 +6,7 @@ from conan.cli.args import common_graph_args, validate_common_graph_args
 from conan.cli.command import conan_command, conan_subcommand
 from conan.cli.formatters.graph import format_graph_html, format_graph_json, format_graph_dot
 from conan.cli.formatters.graph.graph_info_text import format_graph_info
+from conan.cli.formatters.graph.graph_explain_text import format_graph_explain
 from conan.cli.printers.graph import print_graph_packages, print_graph_basic
 from conan.internal.deploy import do_deploys
 from conans.client.graph.install_graph import InstallGraph
@@ -101,6 +102,67 @@ def graph_build_order_merge(conan_api, parser, subparser, *args):
 
     install_order_serialized = result.install_build_order()
     return install_order_serialized
+
+
+@conan_subcommand(formatters={"text": format_graph_explain,
+                              "html": format_graph_html,
+                              "json": format_graph_json,
+                              "dot": format_graph_dot})
+def graph_explain(conan_api, parser, subparser, *args):
+    """
+    Explain the dependency graph and binary selection decisions.
+    """
+    common_graph_args(subparser)
+    subparser.add_argument("--check-updates", default=False, action="store_true",
+                           help="Check if there are recipe updates")
+    subparser.add_argument("--filter", action="append",
+                           help="Show only the specified fields")
+    subparser.add_argument("--package-filter", action="append",
+                           help='Print information only for packages that match the patterns')
+    subparser.add_argument("--build-require", action='store_true', default=False,
+                           help='Whether the provided reference is a build-require')
+    args = parser.parse_args(*args)
+
+    # parameter validation
+    validate_common_graph_args(args)
+
+    cwd = os.getcwd()
+    path = conan_api.local.get_conanfile_path(args.path, cwd, py=None) if args.path else None
+
+    # Basic collaborators, remotes, lockfile, profiles
+    remotes = conan_api.remotes.list(args.remote) if not args.no_remote else []
+    overrides = eval(args.lockfile_overrides) if args.lockfile_overrides else None
+    lockfile = conan_api.lockfile.get_lockfile(lockfile=args.lockfile,
+                                               conanfile_path=path,
+                                               cwd=cwd,
+                                               partial=args.lockfile_partial,
+                                               overrides=overrides)
+    profile_host, profile_build = conan_api.profiles.get_profiles_from_args(args)
+
+    if path:
+        deps_graph = conan_api.graph.load_graph_consumer(path, args.name, args.version,
+                                                         args.user, args.channel,
+                                                         profile_host, profile_build, lockfile,
+                                                         remotes, args.update,
+                                                         check_updates=args.check_updates,
+                                                         is_build_require=args.build_require)
+    else:
+        deps_graph = conan_api.graph.load_graph_requires(args.requires, args.tool_requires,
+                                                         profile_host, profile_build, lockfile,
+                                                         remotes, args.update,
+                                                         check_updates=args.check_updates)
+    print_graph_basic(deps_graph)
+    if deps_graph.error:
+        ConanOutput().info("Graph error", Color.BRIGHT_RED)
+        ConanOutput().info("    {}".format(deps_graph.error), Color.BRIGHT_RED)
+    else:
+        conan_api.graph.explain(deps_graph, args.build, remotes, args.update, lockfile)
+        print_graph_packages(deps_graph)
+
+    return {"graph": deps_graph,
+            "field_filter": args.filter,
+            "package_filter": args.package_filter,
+            "conan_api": conan_api}
 
 
 @conan_subcommand(formatters={"text": format_graph_info,

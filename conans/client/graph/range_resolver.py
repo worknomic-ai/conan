@@ -23,6 +23,7 @@ class RangeResolver:
         # Check if this ref with version range was already solved
         previous_ref = self.resolved_ranges.get(require.ref)
         if previous_ref is not None:
+            require.version_range_info = {"range": str(version_range), "selected": str(previous_ref.version)}
             require.ref = previous_ref
             return
 
@@ -40,6 +41,7 @@ class RangeResolver:
             raise ConanException(f"Version range '{version_range}' from requirement '{require.ref}' "
                                  f"required by '{base_conanref}' could not be resolved")
 
+        require.version_range_info = {"range": str(version_range), "selected": str(resolved_ref.version)}
         # To fix Cache behavior, we remove the revision information
         resolved_ref.revision = None  # FIXME: Wasting information already obtained from server?
         self.resolved_ranges[require.ref] = resolved_ref

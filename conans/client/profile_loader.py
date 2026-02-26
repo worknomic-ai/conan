@@ -219,6 +219,7 @@ class _ProfileValueParser(object):
     def get_profile(profile_text, base_profile=None):
         # Trying to strip comments might be problematic if things contain #
         doc = ConfigParser(profile_text, allowed_fields=["tool_requires", "system_tools",
+                                                         "replace_requires", "platform_requires",
                                                          "settings",
                                                          "options", "conf", "buildenv", "runenv",
                                                          "replace_requires", "platform_requires"])
@@ -230,11 +231,13 @@ class _ProfileValueParser(object):
         replace_requires = _ProfileValueParser._parse_replace_requires(doc)
         platform_requires = _ProfileValueParser._parse_platform_requires(doc)
 
+        system_tools = []
         if doc.system_tools:
-            system_tools = [RecipeReference.loads(r.strip())
-                            for r in doc.system_tools.splitlines() if r.strip()]
-        else:
-            system_tools = []
+            system_tools.extend([RecipeReference.loads(r.strip())
+                                 for r in doc.system_tools.splitlines() if r.strip()])
+        if doc.platform_requires:
+            system_tools.extend([RecipeReference.loads(r.strip())
+                                 for r in doc.platform_requires.splitlines() if r.strip()])
 
         if doc.conf:
             conf = ConfDefinition()
@@ -265,6 +268,7 @@ class _ProfileValueParser(object):
 
         if options is not None:
             base_profile.options.update_options(options)
+        base_profile.replace_requires.update(replace_requires)
         if conf is not None:
             base_profile.conf.update_conf_definition(conf)
         if buildenv is not None:

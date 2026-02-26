@@ -77,6 +77,7 @@ class Profile(object):
             for pattern, req_list in self.tool_requires.items():
                 result.append("%s: %s" % (pattern, ", ".join(str(r) for r in req_list)))
 
+
         if self.system_tools:
             result.append("[system_tools]")
             result.extend(str(t) for t in self.system_tools)

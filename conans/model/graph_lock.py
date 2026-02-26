@@ -236,7 +236,9 @@ class Lockfile(object):
             locked_refs = self._requires.refs()
         self._resolve_overrides(require)
         try:
-            self._resolve(require, locked_refs, resolve_prereleases)
+            locked = self._resolve(require, locked_refs, resolve_prereleases)
+            if locked:
+                require.locked = True
         except ConanException:
             overrides = self._overrides.get(require.ref)
             if overrides is not None and len(overrides) > 1:
@@ -253,6 +255,7 @@ class Lockfile(object):
             ref = next(iter(existing))
             require.ref = ref
             require.override_ref = ref
+            require.locked = True
 
     def resolve_prev(self, node):
         if node.context == CONTEXT_BUILD:
@@ -271,7 +274,7 @@ class Lockfile(object):
             for m in matches:
                 if version_range.contains(m.version, resolve_prereleases):
                     require.ref = m
-                    break
+                    return True
             else:
                 if not self.partial:
                     raise ConanException(f"Requirement '{ref}' not in lockfile")
@@ -281,22 +284,28 @@ class Lockfile(object):
                 for m in matches:
                     if m.version == ref.version:
                         require.ref = m
-                        break
+                        return True
                 else:
                     if not self.partial:
                         raise ConanException(f"Requirement '{ref}' not in lockfile")
             else:
                 if ref not in matches and not self.partial:
                     raise ConanException(f"Requirement '{repr(ref)}' not in lockfile")
+                if ref in matches:
+                    return True
+        return False
 
     def replace_alias(self, require, alias):
         locked_alias = self._alias.get(alias)
         if locked_alias is not None:
             require.ref = locked_alias
+            require.locked = True
             return True
         elif not self.partial:
             raise ConanException(f"Requirement alias '{alias}' not in lockfile")
 
     def resolve_locked_pyrequires(self, require, resolve_prereleases=None):
-        locked_refs = self._python_requires.refs()  # CHANGE
-        self._resolve(require, locked_refs, resolve_prereleases)
+        locked_refs = self._python_requires.refs()
+        locked = self._resolve(require, locked_refs, resolve_prereleases)
+        if locked:
+            require.locked = True
