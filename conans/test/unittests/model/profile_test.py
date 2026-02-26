@@ -5,6 +5,7 @@ from collections import OrderedDict
 
 from conan.tools.env.environment import ProfileEnvironment
 from conans.model.profile import Profile
+from conans.model.recipe_ref import RecipeReference
 
 
 class ProfileTest(unittest.TestCase):
@@ -119,17 +120,28 @@ def test_update_build_requires():
 
 def test_profile_serialize():
     profile = Profile()
-    profile.options.loads("zlib*:aoption=1\nzlib*:otheroption=1")
+    profile.options.update(options_values={"zlib*:aoption": "1", "zlib*:otheroption": "1"})
     profile.buildenv = ProfileEnvironment.loads("VAR1=1\nVAR2=2")
+    profile.runenv = ProfileEnvironment.loads("VAR3=3\nVAR4=4")
+    profile.system_tools = ["tool/1.0", "another/2.0"]
+    profile.replace_requires = {RecipeReference.loads("pkg/1.0"): RecipeReference.loads("pkg/2.0")}
+    profile.platform_requires = {"pkg2/1.0": "pkg2/1.0"}
     profile.conf.update("user.myfield:value", "MyVal")
     profile.settings["arch"] = "x86_64"
     profile.settings["compiler"] = "Visual Studio"
     profile.settings["compiler.version"] = "12"
     profile.tool_requires["*"] = ["zlib/1.2.8"]
     profile.update_package_settings({"MyPackage": [("os", "Windows")]})
-    expected_json = '{"settings": {"arch": "x86_64", "compiler": "Visual Studio", "compiler.version": "12"}, ' \
-                    '"package_settings": {"MyPackage": {"os": "Windows"}}, ' \
-                    '"options": {}, "tool_requires": {"*": ["zlib/1.2.8"]}, ' \
-                    '"replace_requires": {}, "platform_requires": {}, ' \
-                    '"conf": {"user.myfield:value": "MyVal"}, "build_env": "VAR1=1\\nVAR2=2\\n"}'
-    assert expected_json == json.dumps(profile.serialize())
+
+    serialized = profile.serialize()
+    assert serialized["settings"] == {"arch": "x86_64", "compiler": "Visual Studio", "compiler.version": "12"}
+    assert serialized["package_settings"] == {"MyPackage": {"os": "Windows"}}
+    assert serialized["options"] == {"zlib*:aoption": "1", "zlib*:otheroption": "1"}
+    assert serialized["tool_requires"] == {"*": ["zlib/1.2.8"]}
+    assert serialized["system_tools"] == ["tool/1.0", "another/2.0"]
+    assert serialized["replace_requires"] == {"pkg/1.0": "pkg/2.0"}
+    assert serialized["platform_requires"] == {"pkg2/1.0": "pkg2/1.0"}
+    assert serialized["conf"] == {"user.myfield:value": "MyVal"}
+    assert serialized["build_env"] == "VAR1=1\nVAR2=2\n"
+    assert serialized["run_env"] == "VAR3=3\nVAR4=4\n"
+
