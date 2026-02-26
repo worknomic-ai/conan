@@ -13,7 +13,8 @@ from conans.errors import ConanException
 from conans.model.package_ref import PkgReference
 from conans.model.recipe_ref import RecipeReference
 from conans.util.dates import revision_timestamp_now
-from conans.util.files import rmdir, gzopen_without_timestamps
+from conans.util.files import rmdir, gzopen_without_timestamps, renamedir, mkdir
+import tempfile
 
 
 class CacheAPI:
@@ -171,34 +172,65 @@ class CacheAPI:
             if fileobj is None:
                 raise ConanException("pkglist.json not found in archive")
             pkglist = fileobj.read()
-            the_tar.extractall(path=self.conan_api.cache_folder)
-            the_tar.close()
+            # We extract in a temporary folder
+            tmp_folder = tempfile.mkdtemp(dir=self.conan_api.cache_folder)
+            try:
+                for member in the_tar.getmembers():
+                    member.name = member.name.replace("\\", "/")
+                the_tar.extractall(path=tmp_folder)
+            finally:
+                the_tar.close()
 
         out = ConanOutput()
         package_list = PackagesList.deserialize(json.loads(pkglist))
         cache = ClientCache(self.conan_api.cache_folder, self.conan_api.config.global_conf)
-        for ref, ref_bundle in package_list.refs().items():
-            ref.timestamp = revision_timestamp_now()
-            ref_bundle["timestamp"] = ref.timestamp
-            recipe_layout = cache.get_or_create_ref_layout(ref)
-            recipe_folder = ref_bundle["recipe_folder"]
-            rel_path = os.path.relpath(recipe_layout.base_folder, cache.cache_folder).replace("\\", "/")
-            assert rel_path == recipe_folder, f"{rel_path}!={recipe_folder}"
-            out.info(f"Restore: {ref} in {recipe_folder}")
-            for pref, pref_bundle in package_list.prefs(ref, ref_bundle).items():
-                pref.timestamp = revision_timestamp_now()
-                pref_bundle["timestamp"] = pref.timestamp
-                pkg_layout = cache.get_or_create_pkg_layout(pref)
-                pkg_folder = pref_bundle["package_folder"]
-                out.info(f"Restore: {pref} in {pkg_folder}")
-                # We need to put the package in the final location in the cache
-                shutil.move(os.path.join(cache.cache_folder, pkg_folder), pkg_layout.package())
-                metadata_folder = pref_bundle.get("metadata_folder")
-                if metadata_folder:
-                    out.info(f"Restore: {pref} metadata in {metadata_folder}")
-                    # We need to put the package in the final location in the cache
-                    shutil.move(os.path.join(cache.cache_folder, metadata_folder),
-                                pkg_layout.metadata())
+        try:
+            for ref, ref_bundle in package_list.refs().items():
+                ref.timestamp = revision_timestamp_now()
+                ref_bundle["timestamp"] = ref.timestamp
+                recipe_layout = cache.get_or_create_ref_layout(ref)
+                recipe_folder = ref_bundle["recipe_folder"].replace("\\", "/")
+
+                # Move recipe
+                src_recipe_folder = os.path.join(tmp_folder, recipe_folder)
+                dst_recipe_folder = recipe_layout.base_folder
+                if os.path.exists(src_recipe_folder):
+                    out.info(f"Restore: {ref} in {recipe_folder}")
+                    if os.path.normpath(src_recipe_folder) != os.path.normpath(dst_recipe_folder):
+                        rmdir(dst_recipe_folder)
+                        mkdir(os.path.dirname(dst_recipe_folder))
+                        renamedir(src_recipe_folder, dst_recipe_folder)
+
+                for pref, pref_bundle in package_list.prefs(ref, ref_bundle).items():
+                    pref.timestamp = revision_timestamp_now()
+                    pref_bundle["timestamp"] = pref.timestamp
+                    pkg_layout = cache.get_or_create_pkg_layout(pref)
+
+                    # Move package
+                    pkg_folder = pref_bundle["package_folder"].replace("\\", "/")
+                    src_pkg_folder = os.path.join(tmp_folder, pkg_folder)
+                    dst_pkg_folder = pkg_layout.package()
+                    if os.path.exists(src_pkg_folder):
+                        out.info(f"Restore: {pref} in {pkg_folder}")
+                        if os.path.normpath(src_pkg_folder) != os.path.normpath(dst_pkg_folder):
+                            rmdir(dst_pkg_folder)
+                            mkdir(os.path.dirname(dst_pkg_folder))
+                            renamedir(src_pkg_folder, dst_pkg_folder)
+
+                    # Move metadata
+                    metadata_folder = pref_bundle.get("metadata_folder")
+                    if metadata_folder:
+                        metadata_folder = metadata_folder.replace("\\", "/")
+                        src_metadata_folder = os.path.join(tmp_folder, metadata_folder)
+                        dst_metadata_folder = pkg_layout.metadata()
+                        if os.path.exists(src_metadata_folder):
+                            out.info(f"Restore: {pref} metadata in {metadata_folder}")
+                            if os.path.normpath(src_metadata_folder) != os.path.normpath(dst_metadata_folder):
+                                rmdir(dst_metadata_folder)
+                                mkdir(os.path.dirname(dst_metadata_folder))
+                                renamedir(src_metadata_folder, dst_metadata_folder)
+        finally:
+            rmdir(tmp_folder)
 
         return package_list
 
