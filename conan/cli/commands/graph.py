@@ -6,6 +6,7 @@ from conan.cli.args import common_graph_args, validate_common_graph_args
 from conan.cli.command import conan_command, conan_subcommand
 from conan.cli.formatters.graph import format_graph_html, format_graph_json, format_graph_dot
 from conan.cli.formatters.graph.graph_info_text import format_graph_info
+from conan.cli.formatters.graph.graph_explain_text import format_graph_explain
 from conan.cli.printers.graph import print_graph_packages, print_graph_basic
 from conan.internal.deploy import do_deploys
 from conans.client.graph.install_graph import InstallGraph
@@ -103,7 +104,7 @@ def graph_build_order_merge(conan_api, parser, subparser, *args):
     return install_order_serialized
 
 
-@conan_subcommand(formatters={"text": format_graph_info,
+@conan_subcommand(formatters={"text": format_graph_explain,
                               "html": format_graph_html,
                               "json": format_graph_json,
                               "dot": format_graph_dot})
