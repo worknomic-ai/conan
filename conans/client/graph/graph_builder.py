@@ -287,15 +287,23 @@ class DepsGraphBuilder(object):
                     return platform_require, ConanFile(str(platform_require)), RECIPE_PLATFORM, None
 
     def _create_new_node(self, node, require, graph, profile_host, profile_build, graph_lock):
-        if require.ref.version == "<host_version>":
+        version = str(require.ref.version) if require.ref.version else ""
+        if version == "<host_version>" or \
+                (version.startswith("<host_version:") and version.endswith(">")):
             if not require.build or require.visible:
                 raise ConanException(f"{node.ref} require '{require.ref}': 'host_version' can only "
                                      "be used for non-visible tool_requires")
-            req = Requirement(require.ref, headers=True, libs=True, visible=True)
+            if version == "<host_version>":
+                name = require.ref.name
+            else:
+                name = version[len("<host_version:"): -1]
+
+            req_ref = RecipeReference(name, None, None, None)
+            req = Requirement(req_ref, headers=True, libs=True, visible=True)
             transitive = node.transitive_deps.get(req)
             if transitive is None:
                 raise ConanException(f"{node.ref} require '{require.ref}': didn't find a matching "
-                                     "host dependency")
+                                     f"host dependency '{name}'")
             require.ref.version = transitive.require.ref.version
 
         if graph_lock is not None:
