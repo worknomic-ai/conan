@@ -50,6 +50,7 @@ class CMake(object):
         self._cache_variables = configure_preset["cacheVariables"]
 
         self._cmake_program = conanfile.conf.get("tools.cmake:cmake_program", default="cmake")
+        self._ctest_program = conanfile.conf.get("tools.cmake:ctest_program", default="ctest")
 
     def configure(self, variables=None, build_script_folder=None, cli_args=None):
         """
@@ -110,8 +111,8 @@ class CMake(object):
         if cli_args:
             arg_list.extend(cli_args)
 
-        command = " ".join(arg_list)
-        with chdir(self, build_folder):
+        command = cmd_args_to_string(arg_list)
+        with chdir(self._conanfile, build_folder):
             self._conanfile.run(command)
 
     def _build(self, build_type=None, target=None, cli_args=None, build_tool_args=None, env=""):
@@ -232,6 +233,47 @@ class CMake(object):
         env = ["conanbuild", "conanrun"] if env == "" else env
         self._build(build_type=build_type, target=target, cli_args=cli_args,
                     build_tool_args=build_tool_args, env=env)
+
+    def ctest(self, build_type=None, cli_args=None, env=""):
+        """
+        Equivalent to running ctest.
+
+        :param build_type: Use it only to override the value defined in the ``settings.build_type``.
+                           It can fail if the build is single configuration (e.g. Unix Makefiles), as
+                           in that case the build type must be specified at configure time, not build
+                           time.
+        :param cli_args: A list of arguments ``[arg1, arg2, ...]`` that will be passed to the
+                        ``ctest`` command directly.
+        :param env: Same as above ``build()``
+        """
+        if self._conanfile.conf.get("tools.build:skip_test", check_type=bool):
+            return
+
+        is_multi = is_multi_configuration(self._generator)
+        if build_type and not is_multi:
+            self._conanfile.output.error("Don't specify 'build_type' at build time for "
+                                         "single-config build systems")
+
+        bt = build_type or self._conanfile.settings.get_safe("build_type")
+        if not bt:
+            raise ConanException("build_type setting should be defined.")
+
+        arg_list = [self._ctest_program]
+        if is_multi and bt:
+            arg_list.extend(["--build-config", bt])
+
+        if cli_args:
+            arg_list.extend(cli_args)
+
+        command = cmd_args_to_string(arg_list)
+
+        # Environment variables from [buildenv] and [runenv] are applied during execution.
+        # The default for ``ctest()`` is both the buildenv and the runenv
+        env = ["conanbuild", "conanrun"] if env == "" else env
+
+        self._conanfile.output.info("Running CMake.ctest()")
+        with chdir(self._conanfile, self._conanfile.build_folder):
+            self._conanfile.run(command, env=env)
 
     @property
     def _compilation_verbosity_arg(self):
