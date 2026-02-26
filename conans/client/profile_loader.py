@@ -219,6 +219,7 @@ class _ProfileValueParser(object):
     def get_profile(profile_text, base_profile=None):
         # Trying to strip comments might be problematic if things contain #
         doc = ConfigParser(profile_text, allowed_fields=["tool_requires", "system_tools",
+                                                         "replace_requires", "platform_requires",
                                                          "settings",
                                                          "options", "conf", "buildenv", "runenv"])
 
@@ -226,12 +227,15 @@ class _ProfileValueParser(object):
         settings, package_settings = _ProfileValueParser._parse_settings(doc)
         options = Options.loads(doc.options) if doc.options else None
         tool_requires = _ProfileValueParser._parse_tool_requires(doc)
+        replace_requires = _ProfileValueParser._parse_replace_requires(doc)
 
+        system_tools = []
         if doc.system_tools:
-            system_tools = [RecipeReference.loads(r.strip())
-                            for r in doc.system_tools.splitlines() if r.strip()]
-        else:
-            system_tools = []
+            system_tools.extend([RecipeReference.loads(r.strip())
+                                 for r in doc.system_tools.splitlines() if r.strip()])
+        if doc.platform_requires:
+            system_tools.extend([RecipeReference.loads(r.strip())
+                                 for r in doc.platform_requires.splitlines() if r.strip()])
 
         if doc.conf:
             conf = ConfDefinition()
@@ -258,6 +262,7 @@ class _ProfileValueParser(object):
             current[:] = list(current_dict.values())
         if options is not None:
             base_profile.options.update_options(options)
+        base_profile.replace_requires.update(replace_requires)
         if conf is not None:
             base_profile.conf.update_conf_definition(conf)
         if buildenv is not None:
@@ -279,6 +284,18 @@ class _ProfileValueParser(object):
                     pattern, req_list = tokens
                 refs = [RecipeReference.loads(r.strip()) for r in req_list.split(",")]
                 result.setdefault(pattern, []).extend(refs)
+        return result
+
+    @staticmethod
+    def _parse_replace_requires(doc):
+        result = OrderedDict()
+        if doc.replace_requires:
+            for line in doc.replace_requires.splitlines():
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                name, replace = line.split("=", 1)
+                result[name.strip()] = replace.strip()
         return result
 
     @staticmethod
