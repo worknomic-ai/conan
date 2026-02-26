@@ -266,14 +266,14 @@ class CMake(object):
         if cli_args:
             arg_list.extend(cli_args)
 
-        command = " ".join(arg_list)
+        command = cmd_args_to_string(arg_list)
 
         # Environment variables from [buildenv] and [runenv] are applied during execution.
-        # The default for ``test()`` is both the buildenv and the runenv
+        # The default for ``ctest()`` is both the buildenv and the runenv
         env = ["conanbuild", "conanrun"] if env == "" else env
 
         self._conanfile.output.info("Running CMake.ctest()")
-        with chdir(self, self._conanfile.build_folder):
+        with chdir(self._conanfile, self._conanfile.build_folder):
             self._conanfile.run(command, env=env)
 
     @property

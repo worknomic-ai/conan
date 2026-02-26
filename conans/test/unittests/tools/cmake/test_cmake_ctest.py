@@ -65,3 +65,30 @@ def test_ctest_build_type_override():
     cmake = CMake(conanfile)
     cmake.ctest(build_type="Release")
     assert "ctest --build-config Release" in conanfile.command
+
+
+def test_ctest_skip_test():
+    conanfile = _setup_conanfile("Unix Makefiles", {"os": "Linux", "build_type": "Release"})
+    conanfile.conf.define("tools.build:skip_test", True)
+    cmake = CMake(conanfile)
+    cmake.ctest()
+    assert conanfile.command is None
+
+
+def test_ctest_env_verification():
+    conanfile = _setup_conanfile("Unix Makefiles", {"os": "Linux", "build_type": "Release"})
+
+    envs = []
+
+    def runner(*args, **kwargs):
+        envs.append(kwargs.get("env"))
+        return 0
+
+    conanfile.runner = runner
+    cmake = CMake(conanfile)
+
+    cmake.ctest()
+    assert envs[-1] == ["conanbuild", "conanrun"]
+
+    cmake.ctest(env="myenv")
+    assert envs[-1] == "myenv"
