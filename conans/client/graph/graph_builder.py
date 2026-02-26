@@ -67,6 +67,15 @@ class DepsGraphBuilder(object):
         #    node -(require)-> previous (creates a diamond with a previously existing node)
         # TODO: allow bootstrapping, use references instead of names
         # print("  Expanding require ", node, "->", require)
+
+        # Apply replace_requires
+        context = CONTEXT_BUILD if require.build else node.context
+        profile = profile_host if context == CONTEXT_HOST else profile_build
+        for pattern, replacement in profile.replace_requires.items():
+            if ref_matches(require.ref, pattern, is_consumer=False):
+                require.ref = RecipeReference.loads(replacement)
+                break
+
         previous = node.check_downstream_exists(require)
         prev_node = None
         if previous is not None:
@@ -252,14 +261,6 @@ class DepsGraphBuilder(object):
                         return platform_require, ConanFile(str(platform_require)), RECIPE_PLATFORM, None
 
     def _create_new_node(self, node, require, graph, profile_host, profile_build, graph_lock):
-        # Apply replace_requires
-        context = CONTEXT_BUILD if require.build else node.context
-        profile = profile_host if context == CONTEXT_HOST else profile_build
-        for pattern, replacement in profile.replace_requires.items():
-            if ref_matches(require.ref, pattern, is_consumer=False):
-                require.ref = RecipeReference.loads(replacement)
-                break
-
         if require.ref.version == "<host_version>":
             if not require.build or require.visible:
                 raise ConanException(f"{node.ref} require '{require.ref}': 'host_version' can only "
@@ -297,7 +298,7 @@ class DepsGraphBuilder(object):
         if recipe_status == RECIPE_EDITABLE:
             recipe_metadata = os.path.join(dep_conanfile.recipe_folder, "metadata")
             dep_conanfile.folders.set_base_recipe_metadata(recipe_metadata)
-        elif recipe_status != RECIPE_SYSTEM_TOOL:
+        elif recipe_status not in (RECIPE_SYSTEM_TOOL, RECIPE_PLATFORM):
             recipe_metadata = self._cache.recipe_layout(new_ref).metadata()
             dep_conanfile.folders.set_base_recipe_metadata(recipe_metadata)
         # If the node is virtual or a test package, the require is also "root"

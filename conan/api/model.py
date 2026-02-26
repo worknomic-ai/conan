@@ -2,7 +2,7 @@ import fnmatch
 import json
 
 from conans.client.graph.graph import RECIPE_EDITABLE, RECIPE_CONSUMER, RECIPE_SYSTEM_TOOL, \
-    RECIPE_VIRTUAL, BINARY_SKIP, BINARY_MISSING, BINARY_INVALID
+    RECIPE_VIRTUAL, BINARY_SKIP, BINARY_MISSING, BINARY_INVALID, RECIPE_PLATFORM
 from conans.errors import ConanException
 from conans.model.package_ref import PkgReference
 from conans.model.recipe_ref import RecipeReference
@@ -99,7 +99,8 @@ class MultiPackagesList:
                         remote_list.add_refs([pyref])
 
             recipe = node["recipe"]
-            if recipe in (RECIPE_EDITABLE, RECIPE_CONSUMER, RECIPE_VIRTUAL, RECIPE_SYSTEM_TOOL):
+            if recipe in (RECIPE_EDITABLE, RECIPE_CONSUMER, RECIPE_VIRTUAL, RECIPE_SYSTEM_TOOL,
+                          RECIPE_PLATFORM):
                 continue
 
             ref = node["ref"]
