@@ -66,6 +66,7 @@ class Node(object):
         self.cant_build = False  # It will set to a str with a reason if the validate_build() fails
         self.should_build = False  # If the --build or policy wants to build this binary
         self.build_allowed = False
+        self.binary_history = []
 
     def __lt__(self, other):
         """
@@ -221,6 +222,7 @@ class Node(object):
         from conans.client.installer import build_id
         result["build_id"] = build_id(self.conanfile)
         result["binary"] = self.binary
+        result["binary_history"] = self.binary_history
         # TODO: This doesn't match the model, check it
         result["invalid_build"] = self.cant_build
         result["info_invalid"] = getattr(getattr(self.conanfile, "info", None), "invalid", None)
