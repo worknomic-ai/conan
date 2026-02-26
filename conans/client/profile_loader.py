@@ -261,9 +261,7 @@ class _ProfileValueParser(object):
             current[:] = list(current_dict.values())
 
         base_profile.replace_requires.update(replace_requires)
-        current_platform_requires = {r.name: r for r in base_profile.platform_requires}
-        current_platform_requires.update({r.name: r for r in platform_requires})
-        base_profile.platform_requires = list(current_platform_requires.values())
+        base_profile.platform_requires.update(platform_requires)
 
         if options is not None:
             base_profile.options.update_options(options)
@@ -301,18 +299,23 @@ class _ProfileValueParser(object):
                 tokens = line.split(":", 1)
                 if len(tokens) != 2:
                     raise ConanException(f"Invalid replace_requires line '{line}'")
-                old_ref = RecipeReference.loads(tokens[0].strip())
-                new_ref = RecipeReference.loads(tokens[1].strip())
-                result[old_ref] = new_ref
+                pattern = tokens[0].strip()
+                replacement = tokens[1].strip()
+                result[pattern] = replacement
         return result
 
     @staticmethod
     def _parse_platform_requires(doc):
         if doc.platform_requires:
-            return [RecipeReference.loads(r.strip())
-                    for r in doc.platform_requires.splitlines()
-                    if r.strip() and not r.strip().startswith("#")]
-        return []
+            result = {}
+            for line in doc.platform_requires.splitlines():
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                ref = RecipeReference.loads(line)
+                result[ref.name] = ref
+            return result
+        return {}
 
     @staticmethod
     def _parse_settings(doc):

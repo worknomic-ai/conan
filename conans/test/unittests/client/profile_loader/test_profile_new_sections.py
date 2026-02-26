@@ -23,13 +23,13 @@ def test_profile_parse_replace_platform_requires():
     profile = profile_loader.load_profile(profile_path)
 
     assert profile.replace_requires == {
-        RecipeReference.loads("pkg/0.1"): RecipeReference.loads("pkg/0.2"),
-        RecipeReference.loads("other/*"): RecipeReference.loads("other/1.0")
+        "pkg/0.1": "pkg/0.2",
+        "other/*": "other/1.0"
     }
-    assert profile.platform_requires == [
-        RecipeReference.loads("libc/2.31"),
-        RecipeReference.loads("libm/1.0")
-    ]
+    assert profile.platform_requires == {
+        "libc": RecipeReference.loads("libc/2.31"),
+        "libm": RecipeReference.loads("libm/1.0")
+    }
 
 def test_profile_compose_replace_platform_requires():
     tmp = temp_folder()
@@ -55,11 +55,11 @@ def test_profile_compose_replace_platform_requires():
     p0.compose_profile(p1)
 
     assert p0.replace_requires == {
-        RecipeReference.loads("pkg/0.1"): RecipeReference.loads("pkg/0.3"),
-        RecipeReference.loads("other/1.0"): RecipeReference.loads("other/1.1")
+        "pkg/0.1": "pkg/0.3",
+        "other/1.0": "other/1.1"
     }
     # platform_requires merges by name, so libc/2.32 overrides libc/2.31
-    assert p0.platform_requires == [
-        RecipeReference.loads("libc/2.32"),
-        RecipeReference.loads("libm/1.0")
-    ]
+    assert p0.platform_requires == {
+        "libc": RecipeReference.loads("libc/2.32"),
+        "libm": RecipeReference.loads("libm/1.0")
+    }

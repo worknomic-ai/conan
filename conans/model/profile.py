@@ -19,7 +19,7 @@ class Profile(object):
         self.tool_requires = OrderedDict()  # ref pattern: list of ref
         self.system_tools = []
         self.replace_requires = OrderedDict()
-        self.platform_requires = []
+        self.platform_requires = {}
         self.conf = ConfDefinition()
         self.buildenv = ProfileEnvironment()
         self.runenv = ProfileEnvironment()
@@ -40,7 +40,7 @@ class Profile(object):
             "tool_requires": {pattern: [str(r) for r in reqs]
                              for pattern, reqs in self.tool_requires.items()},
             "replace_requires": {str(k): str(v) for k, v in self.replace_requires.items()},
-            "platform_requires": [str(r) for r in self.platform_requires],
+            "platform_requires": {str(k): str(v) for k, v in self.platform_requires.items()},
             "conf": self.conf.serialize(),
             # FIXME: Perform a serialize method for ProfileEnvironment
             "build_env": self.buildenv.dumps()
@@ -88,7 +88,7 @@ class Profile(object):
 
         if self.platform_requires:
             result.append("[platform_requires]")
-            result.extend(str(r) for r in self.platform_requires)
+            result.extend(str(r) for r in self.platform_requires.values())
 
         if self.conf:
             result.append("[conf]")
@@ -132,9 +132,7 @@ class Profile(object):
         self.system_tools = list(current_system_tools.values())
 
         self.replace_requires.update(other.replace_requires)
-        current_platform_requires = {r.name: r for r in self.platform_requires}
-        current_platform_requires.update({r.name: r for r in other.platform_requires})
-        self.platform_requires = list(current_platform_requires.values())
+        self.platform_requires.update(other.platform_requires)
 
         self.conf.update_conf_definition(other.conf)
         self.buildenv.update_profile_env(other.buildenv)  # Profile composition, last has priority

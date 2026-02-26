@@ -247,18 +247,18 @@ class DepsGraphBuilder(object):
     def _resolved_platform_require(node, require, profile_build, profile_host, resolve_prereleases):
         context = CONTEXT_BUILD if require.build else node.context
         profile = profile_host if context == CONTEXT_HOST else profile_build
-        for platform_require in profile.platform_requires:
-            if require.ref.name == platform_require.name:
-                version_range = require.version_range
-                if version_range:
-                    if version_range.contains(platform_require.version, resolve_prereleases):
-                        require.ref.version = platform_require.version
-                        return platform_require, ConanFile(str(platform_require)), RECIPE_PLATFORM, None
-                elif require.ref.version == platform_require.version:
-                    if platform_require.revision is None or require.ref.revision is None or \
-                            platform_require.revision == require.ref.revision:
-                        require.ref.revision = platform_require.revision
-                        return platform_require, ConanFile(str(platform_require)), RECIPE_PLATFORM, None
+        platform_require = profile.platform_requires.get(require.ref.name)
+        if platform_require:
+            version_range = require.version_range
+            if version_range:
+                if version_range.contains(platform_require.version, resolve_prereleases):
+                    require.ref.version = platform_require.version
+                    return platform_require, ConanFile(str(platform_require)), RECIPE_PLATFORM, None
+            elif require.ref.version == platform_require.version:
+                if platform_require.revision is None or require.ref.revision is None or \
+                        platform_require.revision == require.ref.revision:
+                    require.ref.revision = platform_require.revision
+                    return platform_require, ConanFile(str(platform_require)), RECIPE_PLATFORM, None
 
     def _create_new_node(self, node, require, graph, profile_host, profile_build, graph_lock):
         if require.ref.version == "<host_version>":
