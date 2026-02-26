@@ -26,6 +26,8 @@ class UserRequirementsDict(object):
         return bool(self._data)
 
     def __contains__(self, ref):
+        if not isinstance(ref, (str, RecipeReference)):
+            return False
         try:
             self._get(ref)
             return True
@@ -76,15 +78,6 @@ class UserRequirementsDict(object):
 
     def __getitem__(self, name):
         return self.get(name)
-
-    def __contains__(self, ref):
-        if not isinstance(ref, (str, RecipeReference)):
-            return False
-        try:
-            self._get(ref)
-            return True
-        except (KeyError, ConanException):
-            return False
 
     def __delitem__(self, name):
         r, _ = self._get(name)
