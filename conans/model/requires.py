@@ -33,6 +33,8 @@ class Requirement:
         self.override_ref = None  # to store if the requirement has been overriden (store new ref)
         self.is_test = test  # to store that it was a test, even if used as regular requires too
         self.skip = False
+        self.locked = None
+        self.version_range_info = None
 
     @property
     def files(self):  # require needs some files in dependency package
@@ -151,9 +153,13 @@ class Requirement:
         result = {"ref": str(self.ref)}
         serializable = ("run", "libs", "skip", "test", "force", "direct", "build",
                         "transitive_headers", "transitive_libs", "headers",
-                        "package_id_mode", "visible")
+                        "package_id_mode", "visible", "locked", "version_range_info")
         for attribute in serializable:
             result[attribute] = getattr(self, attribute)
+        if self.overriden_ref:
+            result["overriden_ref"] = str(self.overriden_ref)
+        if self.override_ref:
+            result["override_ref"] = str(self.override_ref)
         return result
 
     def copy_requirement(self):

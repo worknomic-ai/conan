@@ -18,6 +18,7 @@ class Profile(object):
         self.options = Options()
         self.tool_requires = OrderedDict()  # ref pattern: list of ref
         self.system_tools = []
+        self.replace_requires = OrderedDict()
         self.conf = ConfDefinition()
         self.buildenv = ProfileEnvironment()
         self.runenv = ProfileEnvironment()
@@ -36,6 +37,7 @@ class Profile(object):
             "package_settings": self.package_settings,
             "options": self.options.serialize(),
             "tool_requires": self.tool_requires,
+            "replace_requires": self.replace_requires,
             "conf": self.conf.serialize(),
             # FIXME: Perform a serialize method for ProfileEnvironment
             "build_env": self.buildenv.dumps()
@@ -71,6 +73,11 @@ class Profile(object):
             result.append("[tool_requires]")
             for pattern, req_list in self.tool_requires.items():
                 result.append("%s: %s" % (pattern, ", ".join(str(r) for r in req_list)))
+
+        if self.replace_requires:
+            result.append("[replace_requires]")
+            for name, replace in self.replace_requires.items():
+                result.append("%s=%s" % (name, replace))
 
         if self.system_tools:
             result.append("[system_tools]")
@@ -116,6 +123,7 @@ class Profile(object):
         current_system_tools = {r.name: r for r in self.system_tools}
         current_system_tools.update({r.name: r for r in other.system_tools})
         self.system_tools = list(current_system_tools.values())
+        self.replace_requires.update(other.replace_requires)
         self.conf.update_conf_definition(other.conf)
         self.buildenv.update_profile_env(other.buildenv)  # Profile composition, last has priority
         self.runenv.update_profile_env(other.runenv)
