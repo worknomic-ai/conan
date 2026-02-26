@@ -298,9 +298,11 @@ class DepsGraphBuilder(object):
             else:
                 name = version[len("<host_version:"): -1]
 
-            req_ref = RecipeReference(name, None, None, None)
-            req = Requirement(req_ref, headers=True, libs=True, visible=True)
-            transitive = node.transitive_deps.get(req)
+            transitive = None
+            for r, t in node.transitive_deps.items():
+                if r.ref.name == name and not r.build:
+                    transitive = t
+                    break
             if transitive is None:
                 raise ConanException(f"{node.ref} require '{require.ref}': didn't find a matching "
                                      f"host dependency '{name}'")
