@@ -1,0 +1,8 @@
+{
+    "version": "0.5",
+    "requires": [
+        "pkg/0.1#rev2"
+    ],
+    "build_requires": [],
+    "python_requires": []
+}
