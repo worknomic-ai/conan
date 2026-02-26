@@ -2,12 +2,14 @@ import os
 import platform
 import textwrap
 
+import yaml
 from jinja2 import Environment, FileSystemLoader
 
 from conan import conan_version
 from conan.internal.api import detect_api
 from conan.internal.cache.home_paths import HomePaths
 from conan.internal.conan_app import ConanApp
+from conans.errors import ConanException
 from conans.model.conf import ConfDefinition
 from conans.util.files import load, save
 
@@ -35,6 +37,26 @@ class ConfigAPI:
 
     def show(self, pattern):
         return self.global_conf.show(pattern)
+
+    @property
+    def settings_yml(self):
+        path = HomePaths(self.conan_api.cache_folder).settings_path
+        if not os.path.exists(path):
+            return {}
+        try:
+            return yaml.safe_load(load(path)) or {}
+        except Exception as e:
+            raise ConanException(f"Error parsing settings.yml: {e}")
+
+    @property
+    def settings_user(self):
+        path = HomePaths(self.conan_api.cache_folder).settings_path_user
+        if not os.path.exists(path):
+            return {}
+        try:
+            return yaml.safe_load(load(path)) or {}
+        except Exception as e:
+            raise ConanException(f"Error parsing settings_user.yml: {e}")
 
     @property
     def global_conf(self):
