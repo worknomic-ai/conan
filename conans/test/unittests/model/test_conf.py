@@ -277,3 +277,9 @@ def test_conf_choices_default():
     c.loads(confs)
     assert c.get("user.category:option1", choices=[1, 2], default=7) == 1
     assert c.get("user.category:option2", choices=[1, 2], default=7) == 7
+
+
+def test_valid_core_conf():
+    c = ConfDefinition()
+    c.loads("core:warnings_as_errors=['deprecated']")
+    assert c.get("core:warnings_as_errors") == ['deprecated']
