@@ -16,8 +16,8 @@ class TestProfileOverrides:
         """)
         c.save({"myprofile": profile})
         c.run("graph info pkg -pr=myprofile")
-        assert "dep1/0.1" not in c.out
-        assert "dep2/0.2" in c.out
+        assert "Requirements\n    dep2/0.2" in c.out
+        assert "dep1/0.1" not in c.out.split("======== Basic graph information ========")[0]
         # Verify it is actually using dep2/0.2 from cache
         c.assert_listed_require({"dep2/0.2": "Cache"})
 
@@ -74,5 +74,5 @@ class TestProfileOverrides:
         """)
         c.save({"myprofile": profile})
         c.run("graph info pkg -pr=myprofile")
-        assert "dep1/0.1" not in c.out
+        assert "dep1/0.1" not in c.out.split("======== Basic graph information ========")[0]
         c.assert_listed_require({"dep2/0.2": "Platform"})

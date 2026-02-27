@@ -74,6 +74,9 @@ class DepsGraphBuilder(object):
         for pattern, replacement in profile.replace_requires.items():
             if ref_matches(require.ref, pattern, is_consumer=False):
                 new_ref = RecipeReference.loads(replacement)
+                require.overriden_ref = require.ref
+                require.override_ref = new_ref
+                require.force = True
                 if require.ref.name != new_ref.name:
                     # Fix the bug: re-hash the requirement in all containers it belongs to
                     # We MUST do this before changing require.ref or dicts will be corrupted
@@ -241,15 +244,6 @@ class DepsGraphBuilder(object):
         return new_ref, dep_conanfile, recipe_status, remote
 
     @staticmethod
-    def _resolve_profile_replace(node, require, profile_host, profile_build):
-        profile = profile_host if node.context == CONTEXT_HOST else profile_build
-        replace = profile.replace_requires.get(require.ref.name)
-        if replace:
-            require.overriden_ref = require.ref
-            require.ref = RecipeReference.loads(replace)
-            require.override_ref = require.ref
-
-    @staticmethod
     def _resolved_system_tool(node, require, profile_build, profile_host, resolve_prereleases):
         if node.context == CONTEXT_HOST and not require.build:  # Only for DIRECT tool_requires
             return
@@ -311,8 +305,6 @@ class DepsGraphBuilder(object):
         if graph_lock is not None:
             # Here is when the ranges and revisions are resolved
             graph_lock.resolve_locked(node, require, self._resolve_prereleases)
-
-        self._resolve_profile_replace(node, require, profile_host, profile_build)
 
         resolved = self._resolved_system_tool(node, require, profile_build, profile_host,
                                               self._resolve_prereleases)
