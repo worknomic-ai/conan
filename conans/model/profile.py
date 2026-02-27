@@ -39,11 +39,13 @@ class Profile(object):
             "options": self.options.serialize(),
             "tool_requires": {pattern: [str(r) for r in reqs]
                              for pattern, reqs in self.tool_requires.items()},
+            "system_tools": [str(t) for t in self.system_tools],
             "replace_requires": {str(k): str(v) for k, v in self.replace_requires.items()},
             "platform_requires": {str(k): str(v) for k, v in self.platform_requires.items()},
             "conf": self.conf.serialize(),
             # FIXME: Perform a serialize method for ProfileEnvironment
-            "build_env": self.buildenv.dumps()
+            "build_env": self.buildenv.dumps(),
+            "run_env": self.runenv.dumps()
         }
 
     @property

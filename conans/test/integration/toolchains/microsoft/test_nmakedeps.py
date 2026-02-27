@@ -29,6 +29,8 @@ def test_nmakedeps():
                 self.cpp_info.components["pkg-3"].requires = ["pkg-1", "pkg-2"]
                 self.cpp_info.components["pkg-4"].libs = ["pkg-4"]
                 self.cpp_info.components["pkg-4"].defines = ["TEST_DEFINITION4=foo"]
+                self.cpp_info.components["pkg-5"].defines = ["TEST_DEFINITION5=VAR=VALUE"]
+                self.cpp_info.components["pkg-6"].defines = ["TEST_DEFINITION6=A=B=C"]
     """)
     client.save({"conanfile.py": conanfile})
     client.run("create . -s arch=x86_64")
@@ -40,6 +42,8 @@ def test_nmakedeps():
     for flag in (
         r"/DTEST_DEFINITION1", r"/DTEST_DEFINITION2#0",
         r"/DTEST_DEFINITION3#", r'/DTEST_DEFINITION4#\\"foo\\"',
+        r'/DTEST_DEFINITION5#\\"VAR#VALUE\\"',
+        r'/DTEST_DEFINITION6#\\"A#B#C\\"',
     ):
         assert re.search(fr'set "CL=%CL%.*\s{flag}(?:\s|")', bat_file)
     # Checking that libs and system libs are added to _LINK_
