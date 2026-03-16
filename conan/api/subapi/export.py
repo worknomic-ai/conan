@@ -41,6 +41,15 @@ class ExportAPI:
         dest_package_folder = pkg_layout.package()
         conanfile.folders.set_base_package(dest_package_folder)
 
+        import os
+        import shutil
+        source_metadata = os.path.join(conanfile.build_folder, "metadata")
+        dest_metadata = pkg_layout.metadata()
+        if os.path.exists(source_metadata):
+            shutil.copytree(source_metadata, dest_metadata, symlinks=True, dirs_exist_ok=True)
+            
+        conanfile.folders.set_base_pkg_metadata(dest_metadata)
+
         with pkg_layout.set_dirty_context_manager():
             prev = run_package_method(conanfile, package_id, hook_manager, ref)
 
