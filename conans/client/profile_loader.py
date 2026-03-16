@@ -219,19 +219,26 @@ class _ProfileValueParser(object):
     def get_profile(profile_text, base_profile=None):
         # Trying to strip comments might be problematic if things contain #
         doc = ConfigParser(profile_text, allowed_fields=["tool_requires", "system_tools",
-                                                         "settings",
+                                                         "settings", "replace_requires",
+                                                         "replace_tool_requires", "platform_requires",
+                                                         "platform_tool_requires",
                                                          "options", "conf", "buildenv", "runenv"])
 
         # Parse doc sections into Conan model, Settings, Options, etc
         settings, package_settings = _ProfileValueParser._parse_settings(doc)
         options = Options.loads(doc.options) if doc.options else None
-        tool_requires = _ProfileValueParser._parse_tool_requires(doc)
+        tool_requires = _ProfileValueParser._parse_requires(doc, "tool_requires")
+        replace_requires = _ProfileValueParser._parse_requires(doc, "replace_requires")
+        replace_tool_requires = _ProfileValueParser._parse_requires(doc, "replace_tool_requires")
+        platform_requires = _ProfileValueParser._parse_requires(doc, "platform_requires")
+        platform_tool_requires = _ProfileValueParser._parse_requires(doc, "platform_tool_requires")
 
         if doc.system_tools:
+            from conan.api.output import ConanOutput
+            ConanOutput().warning("[system_tools] is deprecated in profiles, use [platform_tool_requires] instead.")
             system_tools = [RecipeReference.loads(r.strip())
                             for r in doc.system_tools.splitlines() if r.strip()]
-        else:
-            system_tools = []
+            platform_tool_requires.setdefault("*", []).extend(system_tools)
 
         if doc.conf:
             conf = ConfDefinition()
@@ -243,19 +250,29 @@ class _ProfileValueParser(object):
 
         # Create or update the profile
         base_profile = base_profile or Profile()
+
+        def _update_requires(base_dict, new_dict):
+            for pattern, refs in new_dict.items():
+                current = base_dict.setdefault(pattern, [])
+                current_dict = {r.name: r for r in current}
+                current_dict.update({r.name: r for r in refs})
+                current[:] = list(current_dict.values())
+
+        _update_requires(base_profile.tool_requires, tool_requires)
+        _update_requires(base_profile.replace_requires, replace_requires)
+        _update_requires(base_profile.replace_tool_requires, replace_tool_requires)
+        _update_requires(base_profile.platform_requires, platform_requires)
+        _update_requires(base_profile.platform_tool_requires, platform_tool_requires)
+
+        # map platform_tool_requires back to system_tools for backwards compatibility
+        # system_tools only supports the global * pattern
         current_system_tools = {r.name: r for r in base_profile.system_tools}
-        current_system_tools.update({r.name: r for r in system_tools})
+        current_system_tools.update({r.name: r for r in base_profile.platform_tool_requires.get("*", [])})
         base_profile.system_tools = list(current_system_tools.values())
 
         base_profile.settings.update(settings)
         for pkg_name, values_dict in package_settings.items():
             base_profile.package_settings[pkg_name].update(values_dict)
-        for pattern, refs in tool_requires.items():
-            # If the same package, different version is added, the latest version prevail
-            current = base_profile.tool_requires.setdefault(pattern, [])
-            current_dict = {r.name: r for r in current}
-            current_dict.update({r.name: r for r in refs})
-            current[:] = list(current_dict.values())
         if options is not None:
             base_profile.options.update_options(options)
         if conf is not None:
@@ -267,11 +284,12 @@ class _ProfileValueParser(object):
         return base_profile
 
     @staticmethod
-    def _parse_tool_requires(doc):
+    def _parse_requires(doc, name):
         result = OrderedDict()
-        if doc.tool_requires:
+        text = getattr(doc, name, None)
+        if text:
             # FIXME CHECKS OF DUPLICATED?
-            for br_line in doc.tool_requires.splitlines():
+            for br_line in text.splitlines():
                 tokens = br_line.split(":", 1)
                 if len(tokens) == 1:
                     pattern, req_list = "*", br_line

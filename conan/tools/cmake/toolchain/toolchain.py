@@ -122,7 +122,7 @@ class CMakeToolchain(object):
         self.generator = self._get_generator(generator)
         self.variables = Variables()
         # This doesn't support multi-config, they go to the same configPreset common in multi-config
-        self.cache_variables = {}
+        self.cache_variables = {"CMAKE_POLICY_DEFAULT_CMP0091": "NEW"}
         self.preprocessor_definitions = Variables()
 
         self.extra_cxxflags = []

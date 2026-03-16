@@ -172,6 +172,16 @@ class Requirement:
             return VersionRange(version[1:-1])
 
     @property
+    def tracking_ref(self):
+        version = str(self.ref.version)
+        if version.startswith("<host_version") and version.endswith(">"):
+            tracking_ref = version.split(':', 1)
+            if len(tracking_ref) > 1:
+                return tracking_ref[1][:-1]
+            return self.ref.name
+        return None
+
+    @property
     def alias(self):
         version = repr(self.ref.version)
         if version.startswith("(") and version.endswith(")"):

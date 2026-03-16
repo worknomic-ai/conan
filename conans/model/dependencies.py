@@ -63,6 +63,19 @@ class UserRequirementsDict(object):
     def __getitem__(self, name):
         return self.get(name)
 
+    def __contains__(self, ref):
+        if not isinstance(ref, str):
+            return False
+        try:
+            self._get(ref)
+            return True
+        except KeyError:
+            return False
+        except ConanException as e:
+            if "more than one require" in str(e):
+                return True
+            return False
+
     def __delitem__(self, name):
         r, _ = self._get(name)
         del self._data[r]
