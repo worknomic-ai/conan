@@ -18,8 +18,21 @@ class TestMetadataCommands:
         return client, pid
 
     def save_metadata_file(self, client, pkg_ref, filename="somefile.log"):
-        client.run(f"cache path {pkg_ref} --folder=metadata")
-        metadata_path = str(client.stdout).strip()
+        from conans.model.package_ref import PkgReference
+        from conans.model.recipe_ref import RecipeReference
+        
+        if ":" in pkg_ref:
+            pref = PkgReference.loads(pkg_ref)
+            if not pref.ref.revision:
+                latest_ref = client.cache.get_latest_recipe_reference(pref.ref)
+                pref = PkgReference(latest_ref, pref.package_id, pref.revision)
+            metadata_path = client.get_latest_pkg_layout(pref).metadata()
+        else:
+            ref = RecipeReference.loads(pkg_ref)
+            if not ref.revision:
+                ref = client.cache.get_latest_recipe_reference(ref)
+            metadata_path = client.get_latest_ref_layout(ref).metadata()
+        
         myfile = os.path.join(metadata_path, "logs", filename)
         save(myfile, f"{pkg_ref}!!!!")
         return metadata_path, myfile
@@ -47,15 +60,19 @@ class TestMetadataCommands:
 
         c.run("remove * -c")
         c.run("install --requires=pkg/0.1")  # wont install metadata by default
+        
+        c.run("cache path pkg/0.1 --folder=metadata", assert_error=True)
+        assert "ERROR: 'metadata' folder does not exist for the reference pkg/0.1" in c.out
+        
+        c.run(f"cache path pkg/0.1:{pid} --folder=metadata", assert_error=True)
+        assert f"ERROR: 'metadata' folder does not exist for the reference pkg/0.1" in c.out
+
+        # Forcing the download of the metadata of cache-existing things with the "download" command
+        c.run("download pkg/0.1 -r=default --metadata=*")
         c.run("cache path pkg/0.1 --folder=metadata")
         metadata_path = str(c.stdout).strip()
         c.run(f"cache path pkg/0.1:{pid} --folder=metadata")
         pkg_metadata_path = str(c.stdout).strip()
-        assert not os.path.exists(metadata_path)
-        assert not os.path.exists(pkg_metadata_path)
-
-        # Forcing the download of the metadata of cache-existing things with the "download" command
-        c.run("download pkg/0.1 -r=default --metadata=*")
         for f in "logs/mylogs.txt", "logs/mylogs2.txt":
             assert os.path.isfile(os.path.join(metadata_path, f))
         for f in "logs/mybuildlogs.txt", "logs/mybuildlogs2.txt":
