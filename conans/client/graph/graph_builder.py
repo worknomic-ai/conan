@@ -160,6 +160,40 @@ class DepsGraphBuilder(object):
                     node.conanfile.requires.tool_require(tool_require.repr_notime(),
                                                          raise_if_duplicated=False)
 
+        def _apply_replacements(profile_dict, is_tool):
+            if not profile_dict:
+                return
+            replaced = False
+            from collections import OrderedDict
+            new_requires = OrderedDict()
+            for require in list(node.conanfile.requires.values()):
+                if require.build != is_tool:
+                    new_requires[require] = require
+                    continue
+
+                matched = False
+                for pattern, replacements in profile_dict.items():
+                    if ref_matches(require.ref, pattern, is_consumer=False):
+                        matched = True
+                        replaced = True
+                        for replacement in replacements:
+                            import copy
+                            new_require = copy.copy(require)
+                            new_require.override_ref = replacement
+                            new_require.overriden_ref = require.ref
+                            new_require.ref = replacement
+                            new_requires[new_require] = new_require
+                        break
+
+                if not matched:
+                    new_requires[require] = require
+
+            if replaced:
+                node.conanfile.requires._requires = new_requires
+
+        _apply_replacements(profile.replace_requires, is_tool=False)
+        _apply_replacements(profile.replace_tool_requires, is_tool=True)
+
     def _initialize_requires(self, node, graph, graph_lock):
         for require in node.conanfile.requires.values():
             alias = require.alias  # alias needs to be processed this early
@@ -215,24 +249,24 @@ class DepsGraphBuilder(object):
         return new_ref, dep_conanfile, recipe_status, remote
 
     @staticmethod
-    def _resolved_system_tool(node, require, profile_build, profile_host, resolve_prereleases):
-        if node.context == CONTEXT_HOST and not require.build:  # Only for DIRECT tool_requires
-            return
-        system_tool = profile_build.system_tools if node.context == CONTEXT_BUILD \
-            else profile_host.system_tools
-        if system_tool:
+    def _resolved_platform_require(node, require, profile_build, profile_host, resolve_prereleases):
+        profile = profile_build if node.context == CONTEXT_BUILD else profile_host
+        platform_requires = profile.platform_tool_requires if require.build else profile.platform_requires
+        if platform_requires:
             version_range = require.version_range
-            for d in system_tool:
-                if require.ref.name == d.name:
-                    if version_range:
-                        if version_range.contains(d.version, resolve_prereleases):
-                            require.ref.version = d.version  # resolved range is replaced by exact
-                            return d, ConanFile(str(d)), RECIPE_SYSTEM_TOOL, None
-                    elif require.ref.version == d.version:
-                        if d.revision is None or require.ref.revision is None or \
-                                d.revision == require.ref.revision:
-                            require.ref.revision = d.revision
-                            return d, ConanFile(str(d)), RECIPE_SYSTEM_TOOL, None
+            for pattern, replacements in platform_requires.items():
+                if ref_matches(require.ref, pattern, is_consumer=False):
+                    for d in replacements:
+                        if require.ref.name == d.name:
+                            if version_range:
+                                if version_range.contains(d.version, resolve_prereleases):
+                                    require.ref.version = d.version  # resolved range is replaced by exact
+                                    return d, ConanFile(str(d)), RECIPE_SYSTEM_TOOL, None
+                            elif require.ref.version == d.version:
+                                if d.revision is None or require.ref.revision is None or \
+                                        d.revision == require.ref.revision:
+                                    require.ref.revision = d.revision
+                                    return d, ConanFile(str(d)), RECIPE_SYSTEM_TOOL, None
 
     def _create_new_node(self, node, require, graph, profile_host, profile_build, graph_lock):
         if require.ref.version == "<host_version>":
@@ -250,7 +284,7 @@ class DepsGraphBuilder(object):
             # Here is when the ranges and revisions are resolved
             graph_lock.resolve_locked(node, require, self._resolve_prereleases)
 
-        resolved = self._resolved_system_tool(node, require, profile_build, profile_host,
+        resolved = self._resolved_platform_require(node, require, profile_build, profile_host,
                                               self._resolve_prereleases)
 
         if resolved is None:
