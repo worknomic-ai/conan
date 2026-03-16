@@ -144,3 +144,32 @@ def test_cache_save_restore_graph():
     c2.run("list *:*#*")
     assert "pkg/0.1" in c2.out
     assert "dep/0.1" in c2.out
+
+
+def test_cache_save_cross_platform_normalization():
+    import tarfile
+    # Test that archives saved use POSIX separators and normalized permissions
+    c = TestClient()
+    c.save({"conanfile.py": GenConanfile().with_settings("os")})
+    c.run("create . --name=pkg --version=1.0 -s os=Linux")
+    c.run("cache save pkg/*:* --file=cache.tgz")
+    
+    cache_path = os.path.join(c.current_folder, "cache.tgz")
+    assert os.path.exists(cache_path)
+    
+    with tarfile.open(cache_path, "r:gz") as tar:
+        for tarinfo in tar:
+            # Check POSIX separators
+            assert "\\" not in tarinfo.name
+            # Check permissions and metadata
+            if tarinfo.name != "pkglist.json":
+                assert tarinfo.uid == 0
+                assert tarinfo.gid == 0
+                assert tarinfo.uname == ""
+                assert tarinfo.gname == ""
+                if tarinfo.isdir():
+                    assert tarinfo.mode == 0o755
+                elif tarinfo.mode & 0o111:
+                    assert tarinfo.mode == 0o755
+                else:
+                    assert tarinfo.mode == 0o644

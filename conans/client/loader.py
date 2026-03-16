@@ -14,6 +14,7 @@ from conan.tools.cmake import cmake_layout
 from conan.tools.google import bazel_layout
 from conan.tools.microsoft import vs_layout
 from conans.client.conf.required_version import validate_conan_version
+from conan.api.output import ConanOutput
 from conans.client.loader_txt import ConanFileTextLoader
 from conans.errors import ConanException, NotFoundException, conanfile_exception_formatter
 from conans.model.conan_file import ConanFile
@@ -127,13 +128,14 @@ class ConanFileLoader:
             with conanfile_exception_formatter("conanfile.py", "set_name"):
                 conanfile.set_name()
             if name and name != conanfile.name:
-                raise ConanException("Package recipe with name %s!=%s" % (name, conanfile.name))
+                ConanOutput().warning(f"Name '{name}' provided by command line was overridden by "
+                                      f"set_name() to '{conanfile.name}'")
         if hasattr(conanfile, "set_version"):
             with conanfile_exception_formatter("conanfile.py", "set_version"):
                 conanfile.set_version()
             if version and version != conanfile.version:
-                raise ConanException("Package recipe with version %s!=%s"
-                                     % (version, conanfile.version))
+                ConanOutput().warning(f"Version '{version}' provided by command line was overridden by "
+                                      f"set_version() to '{conanfile.version}'")
 
         return conanfile
 

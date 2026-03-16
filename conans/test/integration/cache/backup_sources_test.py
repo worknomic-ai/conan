@@ -659,3 +659,32 @@ class TestDownloadCacheBackupSources:
         # This used to crash because we were trying to list a missing dir if only exports were made
         assert "[Errno 2] No such file or directory" not in self.client.out
         assert sha256 in os.listdir(http_server_base_folder_backup)
+
+    def test_backup_sources_missing_download_cache(self):
+        http_server_base_folder_internet = os.path.join(self.file_server.store, "internet")
+        save(os.path.join(http_server_base_folder_internet, "myfile.txt"), "Hello, world!")
+
+        sha256 = "315f5bdb76d078c43b8ac0064e4a0164612b1fce77c869345bfc94c75894edd3"
+        conanfile = textwrap.dedent(f"""
+            from conan import ConanFile
+            from conan.tools.files import download
+            class Pkg2(ConanFile):
+                name = "pkg"
+                version = "1.0"
+                def source(self):
+                    download(self, "{self.file_server.fake_url}/internet/myfile.txt", "myfile.txt",
+                             sha256="{sha256}")
+            """)
+
+        # Intentionally omitting core.sources:download_cache
+        self.client.save(
+            {"global.conf": f"core.sources:download_urls=['origin', '{self.file_server.fake_url}/backup/']\n"
+                            f"core.sources:upload_url={self.file_server.fake_url}/backup/"},
+            path=self.client.cache.cache_folder)
+
+        self.client.save({"conanfile.py": conanfile})
+        self.client.run("create .")
+        
+        # It should succeed without AttributeError and fallback to the default cache folder
+        assert f"Sources for {self.file_server.fake_url}/internet/myfile.txt found in origin" in self.client.out
+
