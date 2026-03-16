@@ -23,8 +23,14 @@ def test_cmake_ctest_helper():
                 cmake.ctest(cli_args=["--output-on-failure"])
     """)
     client.save({"conanfile.py": conanfile})
-    # build . doesn't fail if ctest doesn't find tests, it just returns 0 or 8.
-    client.run("build .", assert_error=True)
+    
+    # ctest can return 0 or 8 depending on the version when no tests are found.
+    # We just want to ensure it is executed and args are passed correctly.
+    try:
+        client.run("build .")
+    except Exception as e:
+        if "Command failed (unexpectedly)" not in str(e):
+            raise
     
     assert "Running CMake.ctest()" in client.out
     
