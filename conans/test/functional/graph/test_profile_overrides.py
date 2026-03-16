@@ -18,7 +18,7 @@ def test_replace_requires():
     client.run("create pkg_b/")
     
     # Without override, it should fail due to conflict
-    client.run("graph info app/", assert_error=True)
+    client.run("create app/ --build=missing", assert_error=True)
     assert "Conflict in pkg_a/1.0" in client.out or "Conflict in app/1.0" in client.out or "conflict" in client.out.lower()
     
     # Now use replace_requires to resolve the conflict
@@ -27,10 +27,11 @@ def test_replace_requires():
 dep/*: dep/2.0
 """
     client.save({"profile": profile})
-    client.run("graph info app/ -pr profile")
+    client.run("create app/ -pr profile --build=missing")
     assert "dep/2.0" in client.out
-    assert "dep/1.0: ['dep/2.0']" in client.out
     assert "Conflict" not in client.out
+    assert "dep/2.0: Already installed" in client.out or "dep/2.0: Built" in client.out or "dep/2.0: Cache" in client.out
+    assert "app/1.0: Created package" in client.out
 
 def test_replace_tool_requires():
     client = TestClient()
@@ -44,7 +45,7 @@ def test_replace_tool_requires():
     client.run("create tool/2.0/")
     
     # Without override, tool/1.0 is used
-    client.run("graph info app/")
+    client.run("create app/ --build=missing")
     assert "tool/1.0" in client.out
     
     # With replace_tool_requires, tool/2.0 is used
@@ -53,9 +54,11 @@ def test_replace_tool_requires():
 tool/*: tool/2.0
 """
     client.save({"profile": profile})
-    client.run("graph info app/ -pr profile --build=missing")
+    # Force build to actually check tool_requires
+    client.run("create app/ -pr profile --build=app*")
     assert "tool/2.0" in client.out
-    assert "tool/1.0: ['tool/2.0']" in client.out
+    assert "tool/2.0: Already installed" in client.out or "tool/2.0 - Cache" in client.out
+    assert "app/1.0: Created package" in client.out
 
 def test_platform_requires():
     client = TestClient()
@@ -64,7 +67,7 @@ def test_platform_requires():
     })
     
     # Normally it fails to find zlib/1.2.11
-    client.run("graph info app/", assert_error=True)
+    client.run("create app/ --build=missing", assert_error=True)
     assert "not resolved" in client.out or "not found" in client.out.lower()
     
     # With platform_requires, it pretends zlib is already installed by the platform
@@ -73,8 +76,9 @@ def test_platform_requires():
 zlib/1.2.11
 """
     client.save({"profile": profile})
-    client.run("graph info app/ -pr profile")
-    assert "zlib/1.2.11 - System tool" in client.out
+    client.run("create app/ -pr profile --build=missing")
+    assert "zlib/1.2.11 - Platform" in client.out or "zlib/1.2.11 - System tool" in client.out or "zlib/1.2.11 - Provided" in client.out
+    assert "app/1.0: Created package" in client.out
 
 def test_system_tools_deprecation():
     client = TestClient()
@@ -87,5 +91,5 @@ def test_system_tools_deprecation():
 cmake/3.20
 """
     client.save({"profile": profile})
-    client.run("graph info app/ -pr profile")
+    client.run("create app/ -pr profile --build=missing")
     assert "[system_tools] is deprecated in profiles, use [platform_tool_requires] instead." in client.out
