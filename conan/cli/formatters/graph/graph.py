@@ -61,17 +61,36 @@ class _Grapher(object):
         build_time_nodes = self._deps_graph.build_time_nodes()
         graph_nodes = reversed([n for level in graph_nodes for n in level])
 
+        connected_nodes = set()
+        if self._deps_graph.root:
+            opened = {self._deps_graph.root}
+            while opened:
+                new_opened = set()
+                for o in opened:
+                    connected_nodes.add(o)
+                    new_opened.update(set(o.neighbors()).difference(connected_nodes))
+                opened = new_opened
+
+        if self._deps_graph.error:
+            for attr in ["node", "prev_node", "base_previous", "conflicting_node", "ancestor"]:
+                err_node = getattr(self._deps_graph.error, attr, None)
+                if err_node is not None:
+                    connected_nodes.add(err_node)
+
         _node_map = {}
         for i, node in enumerate(graph_nodes):
+            if node not in connected_nodes:
+                continue
             n = _PrinterGraphItem(i, node, bool(node in build_time_nodes))
             _node_map[node] = n
 
         edges = []
-        for node in self._deps_graph.nodes:
+        for node in connected_nodes:
             for node_to in node.neighbors():
-                src = _node_map[node]
-                dst = _node_map[node_to]
-                edges.append((src, dst))
+                if node_to in _node_map and node in _node_map:
+                    src = _node_map[node]
+                    dst = _node_map[node_to]
+                    edges.append((src, dst))
 
         return _node_map.values(), edges
 

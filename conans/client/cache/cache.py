@@ -22,11 +22,12 @@ class ClientCache(object):
         self.cache_folder = cache_folder
         self.editable_packages = EditablePackages(self.cache_folder)
         # paths
-        self._store_folder = global_conf.get("core.cache:storage_path") or \
-                             os.path.join(self.cache_folder, "p")
+        storage_path = global_conf.get("core.cache:storage_path")
+        self._store_folder = storage_path or os.path.join(self.cache_folder, "p")
 
         try:
-            mkdir(self._store_folder)
+            if not storage_path:
+                mkdir(self._store_folder)
             db_filename = os.path.join(self._store_folder, 'cache.sqlite3')
             self._data_cache = DataCache(self._store_folder, db_filename)
         except Exception as e:

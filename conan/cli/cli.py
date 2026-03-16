@@ -1,7 +1,6 @@
 import importlib
 import os
 import pkgutil
-import re
 import signal
 import sys
 import textwrap
@@ -174,33 +173,7 @@ class Cli:
             # must be a local-import to get updated value
             if ConanOutput.level_allowed(LEVEL_TRACE):
                 print(traceback.format_exc(), file=sys.stderr)
-            self._conan2_migrate_recipe_msg(e)
             raise
-
-    @staticmethod
-    def _conan2_migrate_recipe_msg(exception):
-        message = str(exception)
-
-        result = re.search(r"Package '(.*)' not resolved: .*: Cannot load recipe", message)
-        if result:
-            pkg = result.group(1)
-            error = "*********************************************************\n" \
-                    f"Recipe '{pkg}' seems broken.\n" \
-                    f"It is possible that this recipe is not Conan 2.0 ready\n"\
-                    "If the recipe comes from ConanCenter, report it at https://github.com/conan-io/conan-center-index/issues\n" \
-                    "If it is your recipe, check if it is updated to 2.0\n" \
-                    "*********************************************************\n"
-            ConanOutput().writeln(error, fg=Color.BRIGHT_MAGENTA)
-        result = re.search(r"(.*): Error in build\(\) method, line", message)
-        if result:
-            pkg = result.group(1)
-            error = "*********************************************************\n" \
-                    f"Recipe '{pkg}' cannot build its binary\n" \
-                    f"It is possible that this recipe is not Conan 2.0 ready\n" \
-                    "If the recipe comes from ConanCenter, report it at https://github.com/conan-io/conan-center-index/issues\n" \
-                    "If it is your recipe, check if it is updated to 2.0\n" \
-                    "*********************************************************\n"
-            ConanOutput().writeln(error, fg=Color.BRIGHT_MAGENTA)
 
     @staticmethod
     def exception_exit_error(exception):

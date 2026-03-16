@@ -11,6 +11,7 @@ from conans.model.recipe_ref import ref_matches
 
 BUILT_IN_CONFS = {
     "core:required_conan_version": "Raise if current version does not match the defined range.",
+    "core:warnings_as_errors": "List of warnings that will cause a ConanException",
     "core:non_interactive": "Disable interactive user input, raises error if input necessary",
     "core:skip_warnings": "Do not show warnings in this list",
     "core:default_profile": "Defines the default host profile ('default' by default)",
@@ -80,6 +81,7 @@ BUILT_IN_CONFS = {
     "tools.google.bazel:bazelrc_path": "List of paths to bazelrc files to be used as 'bazel --bazelrc=rcpath1 ... build'",
     "tools.meson.mesontoolchain:backend": "Any Meson backend: ninja, vs, vs2010, vs2012, vs2013, vs2015, vs2017, vs2019, xcode",
     "tools.meson.mesontoolchain:extra_machine_files": "List of paths for any additional native/cross file references to be appended to the existing Conan ones",
+    "tools.microsoft:winsdk_version": "Specifies the version of the Windows SDK to use",
     "tools.microsoft.msbuild:vs_version": "Defines the IDE version when using the new msvc compiler",
     "tools.microsoft.msbuild:max_cpu_count": "Argument for the /m when running msvc to build parallel projects",
     "tools.microsoft.msbuild:installation_path": "VS install path, to avoid auto-detect via vswhere, like C:/Program Files (x86)/Microsoft Visual Studio/2019/Community. Use empty string to disable",
@@ -493,7 +495,10 @@ class Conf:
 
     @staticmethod
     def _check_conf_name(conf):
-        if USER_CONF_PATTERN.match(conf) is None and conf not in BUILT_IN_CONFS:
+        if USER_CONF_PATTERN.match(conf):
+            if ":" not in conf:
+                raise ConanException(f"User conf '{conf}' must contain a ':' separator (e.g. user.org:myconf)")
+        elif conf not in BUILT_IN_CONFS:
             raise ConanException(f"[conf] '{conf}' does not exist in configuration list. "
                                  f" Run 'conan config list' to see all the available confs.")
 

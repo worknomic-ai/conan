@@ -114,29 +114,45 @@ class CacheAPI:
         app = ConanApp(cache_folder, self.conan_api.config.global_conf)
         out = ConanOutput()
         name = os.path.basename(tgz_path)
+
+        def normalize_tarinfo(tarinfo):
+            tarinfo.name = tarinfo.name.replace("\\", "/")
+            tarinfo.uid = 0
+            tarinfo.gid = 0
+            tarinfo.uname = ""
+            tarinfo.gname = ""
+            if tarinfo.isdir():
+                tarinfo.mode = 0o755
+            elif tarinfo.mode & 0o111:
+                tarinfo.mode = 0o755
+            else:
+                tarinfo.mode = 0o644
+            return tarinfo
+
         with open(tgz_path, "wb") as tgz_handle:
             tgz = gzopen_without_timestamps(name, mode="w", fileobj=tgz_handle)
             for ref, ref_bundle in package_list.refs().items():
                 ref_layout = app.cache.recipe_layout(ref)
-                recipe_folder = os.path.relpath(ref_layout.base_folder, cache_folder)
+                recipe_folder = os.path.relpath(ref_layout.base_folder, cache_folder).replace("\\", "/")
                 ref_bundle["recipe_folder"] = recipe_folder
                 out.info(f"Saving {ref}: {recipe_folder}")
-                tgz.add(os.path.join(cache_folder, recipe_folder), recipe_folder, recursive=True)
+                tgz.add(os.path.join(cache_folder, recipe_folder), recipe_folder, recursive=True, filter=normalize_tarinfo)
                 for pref, pref_bundle in package_list.prefs(ref, ref_bundle).items():
                     pref_layout = app.cache.pkg_layout(pref)
                     pkg_folder = pref_layout.package()
-                    folder = os.path.relpath(pkg_folder, cache_folder)
+                    folder = os.path.relpath(pkg_folder, cache_folder).replace("\\", "/")
                     pref_bundle["package_folder"] = folder
                     out.info(f"Saving {pref}: {folder}")
-                    tgz.add(os.path.join(cache_folder, folder), folder, recursive=True)
+                    tgz.add(os.path.join(cache_folder, folder), folder, recursive=True, filter=normalize_tarinfo)
                     if os.path.exists(pref_layout.metadata()):
-                        metadata_folder = os.path.relpath(pref_layout.metadata(), cache_folder)
+                        metadata_folder = os.path.relpath(pref_layout.metadata(), cache_folder).replace("\\", "/")
                         pref_bundle["metadata_folder"] = metadata_folder
                         out.info(f"Saving {pref} metadata: {folder}")
                         tgz.add(os.path.join(cache_folder, metadata_folder), metadata_folder,
-                                recursive=True)
+                                recursive=True, filter=normalize_tarinfo)
             serialized = json.dumps(package_list.serialize(), indent=2)
             info = tarfile.TarInfo(name="pkglist.json")
+            info.mode = 0o644
             data = serialized.encode('utf-8')
             info.size = len(data)
             tgz.addfile(tarinfo=info, fileobj=BytesIO(data))
@@ -158,7 +174,7 @@ class CacheAPI:
             ref_bundle["timestamp"] = ref.timestamp
             recipe_layout = cache.get_or_create_ref_layout(ref)
             recipe_folder = ref_bundle["recipe_folder"]
-            rel_path = os.path.relpath(recipe_layout.base_folder, cache.cache_folder)
+            rel_path = os.path.relpath(recipe_layout.base_folder, cache.cache_folder).replace("\\", "/")
             assert rel_path == recipe_folder, f"{rel_path}!={recipe_folder}"
             out.info(f"Restore: {ref} in {recipe_folder}")
             for pref, pref_bundle in package_list.prefs(ref, ref_bundle).items():

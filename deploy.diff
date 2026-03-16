@@ -1,0 +1,146 @@
+diff --git a/conan/api/subapi/install.py b/conan/api/subapi/install.py
+index 5558b1de907..7fa09cebec3 100644
+--- a/conan/api/subapi/install.py
++++ b/conan/api/subapi/install.py
+@@ -40,7 +40,7 @@ def install_sources(self, graph, remotes):
+ 
+     # TODO: Look for a better name
+     def install_consumer(self, deps_graph, generators=None, source_folder=None, output_folder=None,
+-                         deploy=False, deploy_folder=None):
++                         deploy=False, deploy_package=None, deploy_folder=None):
+         """ Once a dependency graph has been installed, there are things to be done, like invoking
+         generators for the root consumer.
+         This is necessary for example for conanfile.txt/py, or for "conan install <ref> -g
+@@ -61,9 +61,9 @@ def install_consumer(self, deps_graph, generators=None, source_folder=None, outp
+         conanfile.folders.set_base_folders(source_folder, output_folder)
+ 
+         # The previous .set_base_folders has already decided between the source_folder and output
+-        if deploy:
++        if deploy or deploy_package:
+             base_folder = deploy_folder or conanfile.folders.base_build
+-            do_deploys(self.conan_api, deps_graph, deploy, base_folder)
++            do_deploys(self.conan_api, deps_graph, deploy, deploy_package, base_folder)
+ 
+         conanfile.generators = list(set(conanfile.generators).union(generators or []))
+         app = ConanApp(self.conan_api.cache_folder, self.conan_api.config.global_conf)
+diff --git a/conan/cli/commands/graph.py b/conan/cli/commands/graph.py
+index fd6de67271f..3372feb29b2 100644
+--- a/conan/cli/commands/graph.py
++++ b/conan/cli/commands/graph.py
+@@ -173,7 +173,7 @@ def graph_info(conan_api, parser, subparser, *args):
+         conan_api.lockfile.save_lockfile(lockfile, args.lockfile_out, cwd)
+         if args.deployer:
+             base_folder = args.deployer_folder or os.getcwd()
+-            do_deploys(conan_api, deps_graph, args.deployer, base_folder)
++            do_deploys(conan_api, deps_graph, args.deployer, None, base_folder)
+ 
+     return {"graph": deps_graph,
+             "field_filter": args.filter,
+diff --git a/conan/cli/commands/install.py b/conan/cli/commands/install.py
+index 16ddfb0bc35..90fe4d08714 100644
+--- a/conan/cli/commands/install.py
++++ b/conan/cli/commands/install.py
+@@ -33,6 +33,8 @@ def install(conan_api, parser, *args):
+                         help='Deploy using the provided deployer to the output folder')
+     parser.add_argument("--deployer-folder",
+                         help="Deployer output folder, base build folder by default if not set")
++    parser.add_argument("--deployer-package", action="append",
++                        help="Execute the deployment of the specific packages")
+     parser.add_argument("--build-require", action='store_true', default=False,
+                         help='Whether the provided path is a build-require')
+     args = parser.parse_args(*args)
+@@ -70,7 +72,8 @@ def install(conan_api, parser, *args):
+     conan_api.install.install_binaries(deps_graph=deps_graph, remotes=remotes)
+     ConanOutput().title("Finalizing install (deploy, generators)")
+     conan_api.install.install_consumer(deps_graph, args.generator, source_folder, output_folder,
+-                                       deploy=args.deployer, deploy_folder=args.deployer_folder)
++                                       deploy=args.deployer, deploy_package=args.deployer_package,
++                                       deploy_folder=args.deployer_folder)
+     ConanOutput().success("Install finished successfully")
+ 
+     # Update lockfile if necessary
+diff --git a/conan/internal/deploy.py b/conan/internal/deploy.py
+index 6edbba3e88a..48d58c7f257 100644
+--- a/conan/internal/deploy.py
++++ b/conan/internal/deploy.py
+@@ -5,6 +5,7 @@
+ from conan.api.output import ConanOutput
+ from conans.client.loader import load_python_file
+ from conans.errors import ConanException
++from conans.model.recipe_ref import ref_matches
+ from conans.util.files import rmdir, mkdir
+ 
+ 
+@@ -37,8 +38,19 @@ def _load(path):
+     raise ConanException(f"Cannot find deployer '{d}'")
+ 
+ 
+-def do_deploys(conan_api, graph, deploy, deploy_folder):
++def do_deploys(conan_api, graph, deploy, deploy_package, deploy_folder):
+     mkdir(deploy_folder)
++    # handle the recipe deploy()
++    if deploy_package:
++        for node in graph.ordered_iterate():
++            conanfile = node.conanfile
++            if not conanfile.ref or not any(ref_matches(conanfile.ref, p, None)
++                                            for p in deploy_package):
++                continue
++            if hasattr(conanfile, "deploy"):
++                conanfile.output.info("Executing deploy()")
++                conanfile.deploy_folder = deploy_folder
++                conanfile.deploy()
+     # Handle the deploys
+     cache = HomePaths(conan_api.cache_folder)
+     for d in deploy or []:
+diff --git a/conans/test/integration/conanfile/test_deploy_method.py b/conans/test/integration/conanfile/test_deploy_method.py
+new file mode 100644
+index 00000000000..99af2ebce95
+--- /dev/null
++++ b/conans/test/integration/conanfile/test_deploy_method.py
+@@ -0,0 +1,46 @@
++import textwrap
++
++from conans.test.utils.tools import TestClient
++
++
++def test_deploy_method():
++    c = TestClient()
++    conanfile = textwrap.dedent("""
++        import os
++        from conan import ConanFile
++        from conan.tools.files import copy, save
++        class Pkg(ConanFile):
++            name = "{name}"
++            version = "0.1"
++            {requires}
++            def package(self):
++                save(self, os.path.join(self.package_folder, f"my{name}file.txt"), "HELLO!!!!")
++            def deploy(self):
++                copy(self, "*", src=self.package_folder, dst=self.deploy_folder)
++            """)
++    c.save({"dep/conanfile.py": conanfile.format(name="dep", requires=""),
++            "pkg/conanfile.py": conanfile.format(name="pkg", requires="requires='dep/0.1'")})
++    c.run("create dep")
++    assert "Executing deploy()" not in c.out
++    c.run("create pkg")
++    assert "Executing deploy()" not in c.out
++
++    # Doesn't install by default
++    c.run("install --requires=pkg/0.1")
++    assert "Executing deploy()" not in c.out
++
++    # Doesn't install with other patterns
++    c.run("install --requires=pkg/0.1 --deployer-package=other")
++    assert "Executing deploy()" not in c.out
++
++    # install can deploy all
++    c.run("install --requires=pkg/0.1 --deployer-package=* --deployer-folder=mydeploy")
++    assert "dep/0.1: Executing deploy()" in c.out
++    assert "pkg/0.1: Executing deploy()" in c.out
++    assert c.load("mydeploy/mydepfile.txt") == "HELLO!!!!"
++    assert c.load("mydeploy/mypkgfile.txt") == "HELLO!!!!"
++
++    # install can deploy only "pkg"
++    c.run("install --requires=pkg/0.1 --deployer-package=pkg/* --deployer-folder=mydeploy")
++    assert "dep/0.1: Executing deploy()" not in c.out
++    assert "pkg/0.1: Executing deploy()" in c.out

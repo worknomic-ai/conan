@@ -54,7 +54,9 @@ class MockInfoProperty:
 
 class _Component:
 
-    def __init__(self, set_defaults=False):
+    def __init__(self, set_defaults=False, parent=None):
+        self._parent = parent
+
         # ###### PROPERTIES
         self._properties = None
 
@@ -86,7 +88,7 @@ class _Component:
         self.filenames = MockInfoProperty("cpp_info.filenames")
         self.build_modules = MockInfoProperty("cpp_info.build_modules")
 
-        if set_defaults:
+        if set_defaults and self._parent is None:
             self.includedirs = ["include"]
             self.libdirs = ["lib"]
             self.bindirs = ["bin"]
@@ -124,7 +126,7 @@ class _Component:
     @property
     def includedirs(self):
         if self._includedirs is None:
-            self._includedirs = []
+            self._includedirs = list(self._parent.includedirs) if self._parent is not None else []
         return self._includedirs
 
     @includedirs.setter
@@ -134,7 +136,7 @@ class _Component:
     @property
     def srcdirs(self):
         if self._srcdirs is None:
-            self._srcdirs = []
+            self._srcdirs = list(self._parent.srcdirs) if self._parent is not None else []
         return self._srcdirs
 
     @srcdirs.setter
@@ -144,7 +146,7 @@ class _Component:
     @property
     def libdirs(self):
         if self._libdirs is None:
-            self._libdirs = []
+            self._libdirs = list(self._parent.libdirs) if self._parent is not None else []
         return self._libdirs
 
     @libdirs.setter
@@ -154,7 +156,7 @@ class _Component:
     @property
     def resdirs(self):
         if self._resdirs is None:
-            self._resdirs = []
+            self._resdirs = list(self._parent.resdirs) if self._parent is not None else []
         return self._resdirs
 
     @resdirs.setter
@@ -164,7 +166,7 @@ class _Component:
     @property
     def bindirs(self):
         if self._bindirs is None:
-            self._bindirs = []
+            self._bindirs = list(self._parent.bindirs) if self._parent is not None else []
         return self._bindirs
 
     @bindirs.setter
@@ -174,7 +176,7 @@ class _Component:
     @property
     def builddirs(self):
         if self._builddirs is None:
-            self._builddirs = []
+            self._builddirs = list(self._parent.builddirs) if self._parent is not None else []
         return self._builddirs
 
     @builddirs.setter
@@ -184,7 +186,7 @@ class _Component:
     @property
     def frameworkdirs(self):
         if self._frameworkdirs is None:
-            self._frameworkdirs = []
+            self._frameworkdirs = list(self._parent.frameworkdirs) if self._parent is not None else []
         return self._frameworkdirs
 
     @frameworkdirs.setter
@@ -215,7 +217,7 @@ class _Component:
     @property
     def system_libs(self):
         if self._system_libs is None:
-            self._system_libs = []
+            self._system_libs = list(self._parent.system_libs) if self._parent is not None else []
         return self._system_libs
 
     @system_libs.setter
@@ -225,7 +227,7 @@ class _Component:
     @property
     def frameworks(self):
         if self._frameworks is None:
-            self._frameworks = []
+            self._frameworks = list(self._parent.frameworks) if self._parent is not None else []
         return self._frameworks
 
     @frameworks.setter
@@ -235,7 +237,7 @@ class _Component:
     @property
     def libs(self):
         if self._libs is None:
-            self._libs = []
+            self._libs = list(self._parent.libs) if self._parent is not None else []
         return self._libs
 
     @libs.setter
@@ -245,7 +247,7 @@ class _Component:
     @property
     def defines(self):
         if self._defines is None:
-            self._defines = []
+            self._defines = list(self._parent.defines) if self._parent is not None else []
         return self._defines
 
     @defines.setter
@@ -255,7 +257,7 @@ class _Component:
     @property
     def cflags(self):
         if self._cflags is None:
-            self._cflags = []
+            self._cflags = list(self._parent.cflags) if self._parent is not None else []
         return self._cflags
 
     @cflags.setter
@@ -265,7 +267,7 @@ class _Component:
     @property
     def cxxflags(self):
         if self._cxxflags is None:
-            self._cxxflags = []
+            self._cxxflags = list(self._parent.cxxflags) if self._parent is not None else []
         return self._cxxflags
 
     @cxxflags.setter
@@ -275,7 +277,7 @@ class _Component:
     @property
     def sharedlinkflags(self):
         if self._sharedlinkflags is None:
-            self._sharedlinkflags = []
+            self._sharedlinkflags = list(self._parent.sharedlinkflags) if self._parent is not None else []
         return self._sharedlinkflags
 
     @sharedlinkflags.setter
@@ -285,7 +287,7 @@ class _Component:
     @property
     def exelinkflags(self):
         if self._exelinkflags is None:
-            self._exelinkflags = []
+            self._exelinkflags = list(self._parent.exelinkflags) if self._parent is not None else []
         return self._exelinkflags
 
     @exelinkflags.setter
@@ -295,7 +297,7 @@ class _Component:
     @property
     def objects(self):
         if self._objects is None:
-            self._objects = []
+            self._objects = list(self._parent.objects) if self._parent is not None else []
         return self._objects
 
     @objects.setter
@@ -305,7 +307,7 @@ class _Component:
     @property
     def sysroot(self):
         if self._sysroot is None:
-            self._sysroot = ""
+            self._sysroot = self._parent.sysroot if self._parent is not None else ""
         return self._sysroot
 
     @sysroot.setter
@@ -389,7 +391,12 @@ class _Component:
 
     def deploy_base_folder(self, package_folder, deploy_folder):
         def relocate(el):
-            rel_path = os.path.relpath(el, package_folder)
+            try:
+                rel_path = os.path.relpath(el, package_folder)
+            except ValueError:
+                return el
+            if rel_path.startswith("..") or os.path.isabs(rel_path):
+                return el
             return os.path.join(deploy_folder, rel_path)
 
         for varname in _DIRS_VAR_NAMES:
@@ -410,8 +417,8 @@ class _Component:
 class CppInfo:
 
     def __init__(self, set_defaults=False):
-        self.components = defaultdict(lambda: _Component(set_defaults))
         self._package = _Component(set_defaults)
+        self.components = defaultdict(lambda: _Component(set_defaults, parent=self._package))
 
     def __getattr__(self, attr):
         # all cpp_info.xxx of not defined things will go to the global package
@@ -432,7 +439,9 @@ class CppInfo:
     def deserialize(self, content):
         self._package = _Component.deserialize(content.pop("root"))
         for component_name, info in content.items():
-            self.components[component_name] = _Component.deserialize(info)
+            comp = _Component.deserialize(info)
+            comp._parent = self._package
+            self.components[component_name] = comp
         return self
 
     def save(self, path):
@@ -460,7 +469,7 @@ class CppInfo:
         # COMPONENTS
         for cname, c in other.components.items():
             # Make sure each component created on the fly does not bring new defaults
-            self.components.setdefault(cname, _Component(set_defaults=False)).merge(c, overwrite)
+            self.components.setdefault(cname, _Component(set_defaults=False, parent=self._package)).merge(c, overwrite)
 
     def set_relative_base_folder(self, folder):
         """Prepend the folder to all the directories definitions, that are relative"""

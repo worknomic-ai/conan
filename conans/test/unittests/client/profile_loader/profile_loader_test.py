@@ -252,3 +252,26 @@ def test_profile_core_confs_error(conf_name):
     with pytest.raises(ConanException) as exc:
         profile_loader.from_cli_args([], [], [], [conf_name], None)
     assert "[conf] 'core.*' configurations are not allowed in profiles" in str(exc.value)
+
+
+def test_profile_new_requires():
+    txt = textwrap.dedent("""
+        [replace_requires]
+        *: zlib/1.3
+
+        [replace_tool_requires]
+        *: cmake/3.20
+
+        [platform_requires]
+        *: myplatform/1.0
+
+        [platform_tool_requires]
+        *: myplatform_tool/1.0
+    """)
+    from conans.client.profile_loader import _ProfileValueParser
+    profile = _ProfileValueParser.get_profile(txt)
+
+    assert profile.replace_requires == {"*": [RecipeReference.loads("zlib/1.3")]}
+    assert profile.replace_tool_requires == {"*": [RecipeReference.loads("cmake/3.20")]}
+    assert profile.platform_requires == {"*": [RecipeReference.loads("myplatform/1.0")]}
+    assert profile.platform_tool_requires == {"*": [RecipeReference.loads("myplatform_tool/1.0")]}

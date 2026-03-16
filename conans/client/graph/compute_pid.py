@@ -63,6 +63,10 @@ def compute_package_id(node, new_config):
 
     run_validate_package_id(conanfile)
 
+    if getattr(conanfile.info, "header_only", False):
+        from conans.model.pkg_type import PackageType
+        conanfile.package_type = PackageType.HEADER
+
     if conanfile.info.settings_target:
         # settings_target has beed added to conan package via package_id api
         conanfile.original_info.settings_target = conanfile.info.settings_target

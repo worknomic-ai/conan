@@ -1,3 +1,5 @@
+import os
+
 from conan.api.conan_api import ConanAPI
 from conan.api.model import ListPattern, MultiPackagesList
 from conan.api.output import cli_out_write
@@ -38,23 +40,36 @@ def cache_path(conan_api: ConanAPI, parser, subparser, *args):
         ref = RecipeReference.loads(args.reference)
         if args.folder is None:
             path = conan_api.cache.export_path(ref)
+            folder_name = "exports"
         elif args.folder == "export_source":
             path = conan_api.cache.export_source_path(ref)
+            folder_name = "export_source"
         elif args.folder == "source":
             path = conan_api.cache.source_path(ref)
+            folder_name = "source"
         elif args.folder == "metadata":
             path = conan_api.cache.recipe_metadata_path(ref)
+            folder_name = "metadata"
         else:
             raise ConanException(f"'--folder {args.folder}' requires a valid package reference")
+        reference = ref
     else:
         if args.folder is None:
             path = conan_api.cache.package_path(pref)
+            folder_name = "package"
         elif args.folder == "build":
             path = conan_api.cache.build_path(pref)
+            folder_name = "build"
         elif args.folder == "metadata":
             path = conan_api.cache.package_metadata_path(pref)
+            folder_name = "metadata"
         else:
             raise ConanException(f"'--folder {args.folder}' requires a recipe reference")
+        reference = pref
+
+    if not os.path.exists(path):
+        raise ConanException(f"'{folder_name}' folder does not exist for the reference {reference}")
+
     return path
 
 

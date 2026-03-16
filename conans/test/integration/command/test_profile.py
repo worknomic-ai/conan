@@ -34,28 +34,36 @@ def test_ignore_paths_when_listing_profiles():
 
 def test_shorthand_syntax():
     tc = TestClient()
-    tc.save({"profile": "[conf]\nuser.profile=True"})
+    tc.save({"profile": "[conf]\nuser.profile:enabled=True"})
     tc.run("profile show -h")
     assert "[-pr:b" in tc.out
     assert "[-pr:h" in tc.out
     assert "[-pr:a" in tc.out
 
     tc.run(
-        "profile show -o:a=both_options=True -pr:a=profile -s:a=os=WindowsCE -s:a=os.platform=conan -c:a=user.conf.cli=True -f=json")
+        "profile show -o:a=both_options=True -pr:a=profile -s:a=os=WindowsCE -s:a=os.platform=conan -c:a=user.conf:cli=True -f=json")
 
     out = json.loads(tc.out)
     assert out == {'build': {'build_env': '',
-                             'conf': {'user.conf.cli': True, 'user.profile': True},
+                             'conf': {'user.conf:cli': True, 'user.profile:enabled': True},
                              'options': {'both_options': 'True'},
                              'package_settings': {},
                              'settings': {'os': 'WindowsCE', 'os.platform': 'conan'},
-                             'tool_requires': {}},
+                             'tool_requires': {},
+                             'replace_requires': {},
+                             'replace_tool_requires': {},
+                             'platform_requires': {},
+                             'platform_tool_requires': {}},
                    'host': {'build_env': '',
-                            'conf': {'user.conf.cli': True, 'user.profile': True},
+                            'conf': {'user.conf:cli': True, 'user.profile:enabled': True},
                             'options': {'both_options': 'True'},
                             'package_settings': {},
                             'settings': {'os': 'WindowsCE', 'os.platform': 'conan'},
-                            'tool_requires': {}}}
+                            'tool_requires': {},
+                            'replace_requires': {},
+                            'replace_tool_requires': {},
+                            'platform_requires': {},
+                            'platform_tool_requires': {}}}
 
     tc.save({"pre": textwrap.dedent("""
             [settings]
@@ -82,7 +90,11 @@ def test_shorthand_syntax():
                              'settings': {'compiler': 'clang',
                                           'compiler.version': '13',
                                           'os': 'Linux'},
-                             'tool_requires': {}},
+                             'tool_requires': {},
+                             'replace_requires': {},
+                             'replace_tool_requires': {},
+                             'platform_requires': {},
+                             'platform_tool_requires': {}},
                    'host': {'build_env': '',
                             'conf': {},
                             'options': {},
@@ -90,7 +102,11 @@ def test_shorthand_syntax():
                             'settings': {'compiler': 'clang',
                                          'compiler.version': '13',
                                          'os': 'Linux'},
-                            'tool_requires': {}}}
+                            'tool_requires': {},
+                            'replace_requires': {},
+                            'replace_tool_requires': {},
+                            'platform_requires': {},
+                            'platform_tool_requires': {}}}
 
     tc.run("profile show -pr:a=pre -pr:h=post -f=json")
     out = json.loads(tc.out)
@@ -101,7 +117,11 @@ def test_shorthand_syntax():
                              'settings': {'compiler': 'gcc',
                                           'compiler.version': '11',
                                           'os': 'Linux'},
-                             'tool_requires': {}},
+                             'tool_requires': {},
+                             'replace_requires': {},
+                             'replace_tool_requires': {},
+                             'platform_requires': {},
+                             'platform_tool_requires': {}},
                    'host': {'build_env': '',
                             'conf': {},
                             'options': {},
@@ -109,7 +129,11 @@ def test_shorthand_syntax():
                             'settings': {'compiler': 'gcc',
                                          'compiler.version': '13',
                                          'os': 'Linux'},
-                            'tool_requires': {}}}
+                            'tool_requires': {},
+                            'replace_requires': {},
+                            'replace_tool_requires': {},
+                            'platform_requires': {},
+                            'platform_tool_requires': {}}}
 
     tc.run("profile show -pr:a=pre -o:b foo=False -o:a foo=True -o:h foo=False -f=json")
     out = json.loads(tc.out)
@@ -120,7 +144,11 @@ def test_shorthand_syntax():
                              'settings': {'compiler': 'gcc',
                                           'compiler.version': '11',
                                           'os': 'Linux'},
-                             'tool_requires': {}},
+                             'tool_requires': {},
+                             'replace_requires': {},
+                             'replace_tool_requires': {},
+                             'platform_requires': {},
+                             'platform_tool_requires': {}},
                    'host': {'build_env': '',
                             'conf': {},
                             'options': {'foo': 'False'},
@@ -128,7 +156,11 @@ def test_shorthand_syntax():
                             'settings': {'compiler': 'gcc',
                                          'compiler.version': '11',
                                          'os': 'Linux'},
-                            'tool_requires': {}}}
+                            'tool_requires': {},
+                            'replace_requires': {},
+                            'replace_tool_requires': {},
+                            'platform_requires': {},
+                            'platform_tool_requires': {}}}
 
 
 def test_profile_show_json():
@@ -139,3 +171,10 @@ def test_profile_show_json():
     profile = json.loads(c.stdout)
     assert profile["build"]["settings"] == {"os": "Windows"}
     assert profile["host"]["settings"] == {"os": "Linux"}
+
+def test_profile_show_tool_requires_json():
+    c = TestClient()
+    c.save({"myprofile": "[tool_requires]\nmytool/1.0.0"})
+    c.run("profile show -pr myprofile --format=json")
+    profile = json.loads(c.stdout)
+    assert profile["host"]["tool_requires"] == {"*": ["mytool/1.0.0"]}

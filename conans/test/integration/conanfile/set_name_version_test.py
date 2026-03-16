@@ -64,7 +64,7 @@ class SetVersionNameTest(unittest.TestCase):
         client.run("install .")
         self.assertIn("conanfile.py (pkg/2.1):", client.out)
 
-    def test_set_version_name_errors(self):
+    def test_set_version_name_overrides_cli(self):
         client = TestClient()
         conanfile = textwrap.dedent("""
             from conan import ConanFile
@@ -75,17 +75,31 @@ class SetVersionNameTest(unittest.TestCase):
                     self.version = "2.1"
             """)
         client.save({"conanfile.py": conanfile})
-        client.run("export . --name=other --version=1.1 --user=user --channel=testing", assert_error=True)
-        self.assertIn("ERROR: Package recipe with name other!=pkg", client.out)
-        client.run("export .  --version=1.1 --user=user --channel=testing", assert_error=True)
-        self.assertIn("ERROR: Package recipe with version 1.1!=2.1", client.out)
-        # These are checked but match and don't conflict
+        client.run("export . --name=other --version=1.1 --user=user --channel=testing")
+        assert "WARN: Name 'other' provided by command line was overridden by set_name() to 'pkg'" in client.out
+        assert "WARN: Version '1.1' provided by command line was overridden by set_version() to '2.1'" in client.out
+        assert "pkg/2.1@user/testing: Exported:" in client.out
+        
+        client.run("export .  --version=1.1 --user=user --channel=testing")
+        assert "WARN: Version '1.1' provided by command line was overridden by set_version() to '2.1'" in client.out
+        assert "pkg/2.1@user/testing: Exported:" in client.out
+        
+        # These are checked but match and don't conflict, so no warning
         client.run("export . --version=2.1 --user=user --channel=testing")
+        assert "WARN" not in client.out
         client.run("export . --name=pkg --version=2.1 --user=user --channel=testing")
+        assert "WARN" not in client.out
 
-        # Local flow should also fail
-        client.run("install . --name=other --version=1.2", assert_error=True)
-        self.assertIn("ERROR: Package recipe with name other!=pkg", client.out)
+        # Local flow should also override
+        client.run("install . --name=other --version=1.2")
+        assert "WARN: Name 'other' provided by command line was overridden by set_name() to 'pkg'" in client.out
+        assert "WARN: Version '1.2' provided by command line was overridden by set_version() to '2.1'" in client.out
+
+        # Create flow should override
+        client.run("create . --name=other --version=1.2")
+        assert "WARN: Name 'other' provided by command line was overridden by set_name() to 'pkg'" in client.out
+        assert "WARN: Version '1.2' provided by command line was overridden by set_version() to '2.1'" in client.out
+        assert "pkg/2.1: Created package" in client.out
 
     def test_set_version_name_only_not_cli(self):
         client = TestClient()

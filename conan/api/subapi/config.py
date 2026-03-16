@@ -37,6 +37,24 @@ class ConfigAPI:
         return self.global_conf.show(pattern)
 
     @property
+    def settings_yml(self):
+        """Returns the contents of settings.yml as a string."""
+        home_paths = HomePaths(self.conan_api.cache_folder)
+        settings_path = home_paths.settings_path
+        if os.path.exists(settings_path):
+            return load(settings_path)
+        return ""
+
+    @property
+    def settings_user_yml(self):
+        """Returns the contents of settings_user.yml as a string."""
+        home_paths = HomePaths(self.conan_api.cache_folder)
+        settings_path_user = home_paths.settings_path_user
+        if os.path.exists(settings_path_user):
+            return load(settings_path_user)
+        return ""
+
+    @property
     def global_conf(self):
         """ this is the new global.conf to replace the old conan.conf that contains
         configuration defined with the new syntax as in profiles, this config will be composed
