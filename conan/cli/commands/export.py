@@ -19,7 +19,7 @@ def pkglist_export(ref):
     from conan.cli.commands.list import print_list_json
     pkglist = MultiPackagesList()
     pkglist.add("Local Cache", PackagesList())
-    refs = ref if isinstance(ref, list) else [ref]
+    refs = ref if isinstance(ref, (list, tuple)) else [ref]
     pkglist["Local Cache"].add_refs(refs)
     print_list_json({"results": pkglist.serialize()})
 
