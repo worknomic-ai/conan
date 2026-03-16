@@ -1,0 +1,59 @@
+--- conan/tools/cmake/cmake.py
++++ conan/tools/cmake/cmake.py
+@@ -113,10 +113,8 @@
+         with chdir(self, build_folder):
+             self._conanfile.run(command)
+ 
+-    def _build(self, build_type=None, target=None, cli_args=None, build_tool_args=None, env=None,
++    def _build(self, build_type=None, target=None, cli_args=None, build_tool_args=None, env="",
+                stdout=None, stderr=None):
+-        if env is None:
+-            env = ""
+         bf = self._conanfile.build_folder
+         is_multi = is_multi_configuration(self._generator)
+         if build_type and not is_multi:
+@@ -211,10 +209,8 @@
+         command = "%s %s" % (self._cmake_program, arg_list)
+         self._conanfile.run(command, stdout=stdout, stderr=stderr)
+ 
+-    def test(self, build_type=None, target=None, cli_args=None, build_tool_args=None, env=None,
++    def test(self, build_type=None, target=None, cli_args=None, build_tool_args=None, env="",
+              stdout=None, stderr=None):
+-        if env is None:
+-            env = ""
+         """
+         Equivalent to running cmake --build . --target=RUN_TESTS.
+ 
+@@ -239,7 +235,7 @@
+         self._build(build_type=build_type, target=target, cli_args=cli_args,
+                     build_tool_args=build_tool_args, env=env, stdout=stdout, stderr=stderr)
+ 
+-    def ctest(self, cli_args=None, build_type=None, env=None, stdout=None, stderr=None):
++    def ctest(self, cli_args=None, build_type=None, env="", stdout=None, stderr=None):
+         """
+         Equivalent to running ctest ...
+ 
+@@ -250,8 +246,6 @@
+                            as in that case the build type must be specified at configure time,
+                            not build type.
+         """
+-        if env is None:
+-            env = ""
+         if self._conanfile.conf.get("tools.build:skip_test", check_type=bool):
+             return
+ 
+@@ -272,12 +266,8 @@
+ 
+         ctest_program = "ctest"
+         if self._cmake_program:
+-            if self._cmake_program.endswith("cmake.exe"):
+-                ctest_program = self._cmake_program[:-9] + "ctest.exe"
+-            elif self._cmake_program.endswith("cmake"):
+-                ctest_program = self._cmake_program[:-5] + "ctest"
+-            else:
+-                ctest_program = self._cmake_program.replace("cmake", "ctest")
++            cmake_prog_name = os.path.basename(self._cmake_program)
++            ctest_program = self._cmake_program[:-len(cmake_prog_name)] + cmake_prog_name.replace("cmake", "ctest")
+ 
+         arg_list = " ".join(filter(None, arg_list))
+         command = f"{ctest_program} {arg_list}".strip()
