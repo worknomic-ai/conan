@@ -168,6 +168,8 @@ class _EnvValue:
         for i, v in enumerate(self._values):
             if v is _EnvVarPlaceHolder:
                 continue
+            if os.path.isabs(v):
+                continue
             try:
                 rel_path = os.path.relpath(v, package_folder)
             except ValueError:

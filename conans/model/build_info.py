@@ -391,6 +391,8 @@ class _Component:
 
     def deploy_base_folder(self, package_folder, deploy_folder):
         def relocate(el):
+            if os.path.isabs(el):
+                return el
             try:
                 rel_path = os.path.relpath(el, package_folder)
             except ValueError:
