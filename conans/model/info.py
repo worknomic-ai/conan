@@ -394,6 +394,10 @@ class ConanInfo:
         self.options.clear()
         self.requires.clear()
         self.conf.clear()
+        if self.build_requires is not None:
+            self.build_requires.clear()
+        if self.python_requires is not None:
+            self.python_requires.clear()
 
     def validate(self):
         # If the options are not fully defined, this is also an invalid case
