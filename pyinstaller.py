@@ -19,7 +19,6 @@ import os
 import platform
 import shutil
 import subprocess
-from distutils import dir_util
 
 from conans import __version__
 from conans.util.files import save
@@ -37,7 +36,7 @@ def _run_bin(pyinstaller_path):
     conan_bin = os.path.join(pyinstaller_path, 'dist', 'conan', 'conan')
     if platform.system() == 'Windows':
         conan_bin = '"' + conan_bin + '.exe' + '"'
-    retcode = os.system(conan_bin)
+    retcode = os.system(conan_bin + ' --version')
     if retcode != 0:
         raise Exception("Binary not working")
 
@@ -104,7 +103,8 @@ def pyinstall(source_folder):
     conan_path = os.path.join(source_folder, 'conans', 'conan.py')
     hidden = ("--hidden-import=glob "  # core stdlib
               "--hidden-import=pathlib "
-              "--hidden-import=distutils.dir_util "
+              "--hidden-import=shutil "
+              "--hidden-import=sysconfig "
               # Modules that can be imported in ConanFile conan.tools and errors
               "--collect-submodules=conan.cli.commands "
               "--hidden-import=conan.errors "
