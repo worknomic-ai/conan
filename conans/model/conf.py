@@ -493,7 +493,10 @@ class Conf:
 
     @staticmethod
     def _check_conf_name(conf):
-        if USER_CONF_PATTERN.match(conf) is None and conf not in BUILT_IN_CONFS:
+        if USER_CONF_PATTERN.match(conf):
+            if ":" not in conf:
+                raise ConanException(f"User conf '{conf}' must contain a ':' separator (e.g. user.org:myconf)")
+        elif conf not in BUILT_IN_CONFS:
             raise ConanException(f"[conf] '{conf}' does not exist in configuration list. "
                                  f" Run 'conan config list' to see all the available confs.")
 
