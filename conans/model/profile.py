@@ -35,7 +35,7 @@ class Profile(object):
             "settings": self.settings,
             "package_settings": self.package_settings,
             "options": self.options.serialize(),
-            "tool_requires": {pattern: [repr(r) for r in reqs] for pattern, reqs in self.tool_requires.items()},
+            "tool_requires": {k: [str(r) for r in v] for k, v in self.tool_requires.items()},
             "conf": self.conf.serialize(),
             # FIXME: Perform a serialize method for ProfileEnvironment
             "build_env": self.buildenv.dumps()
