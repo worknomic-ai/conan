@@ -11,6 +11,7 @@ from conans.model.recipe_ref import ref_matches
 
 BUILT_IN_CONFS = {
     "core:required_conan_version": "Raise if current version does not match the defined range.",
+    "core:warnings_as_errors": "List of warnings that will cause a ConanException",
     "core:non_interactive": "Disable interactive user input, raises error if input necessary",
     "core:skip_warnings": "Do not show warnings in this list",
     "core:default_profile": "Defines the default host profile ('default' by default)",
