@@ -126,24 +126,29 @@ def get(conanfile, url, md5=None, sha1=None, sha256=None, destination=".", filen
     os.unlink(filename)
 
 
-def ftp_download(conanfile, host, filename, login='', password=''):
+def ftp_download(conanfile, host, filename, login='', password='', secure=False):
     """
-    Ftp download of a file. Retrieves a file from an FTP server. This doesn’t support SSL, but you
-    might implement it yourself using the standard Python FTP library.
+    Ftp download of a file. Retrieves a file from an FTP server.
 
     :param conanfile: The current recipe object. Always use ``self``.
     :param host: IP or host of the FTP server
     :param filename: Path to the file to be downloaded
     :param login: Authentication login
     :param password: Authentication password
+    :param secure: If True, uses FTP_TLS and switches connection to secure data transfer.
     """
     # TODO: Check if we want to join this method with download() one, based on ftp:// protocol
     # this has been requested by some users, but the signature is a bit divergent
     import ftplib
     ftp = None
     try:
-        ftp = ftplib.FTP(host)
+        if secure:
+            ftp = ftplib.FTP_TLS(host)
+        else:
+            ftp = ftplib.FTP(host)
         ftp.login(login, password)
+        if secure:
+            ftp.prot_p()
         filepath, filename = os.path.split(filename)
         if filepath:
             ftp.cwd(filepath)
