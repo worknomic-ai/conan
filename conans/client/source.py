@@ -78,6 +78,22 @@ def run_source_method(conanfile, hook_manager):
         if hasattr(conanfile, "source"):
             conanfile.output.highlight("Calling source() in {}".format(conanfile.source_folder))
             with conanfile_exception_formatter(conanfile, "source"):
-                with conanfile_remove_attr(conanfile, ['settings', "options"], "source"):
-                    conanfile.source()
+                from conan.tools.env.virtualbuildenv import VirtualBuildEnv
+                from conan.tools.env.virtualrunenv import VirtualRunEnv
+                
+                env, runenv = None, None
+                if getattr(conanfile, "_conan_node", None) is not None:
+                    env = VirtualBuildEnv(conanfile).vars()
+                    runenv = VirtualRunEnv(conanfile).vars()
+                
+                import contextlib
+
+                @contextlib.contextmanager
+                def dummy_context():
+                    yield
+
+                with env.apply() if env else dummy_context():
+                    with runenv.apply() if runenv else dummy_context():
+                        with conanfile_remove_attr(conanfile, ['settings', "options"], "source"):
+                            conanfile.source()
         hook_manager.execute("post_source", conanfile=conanfile)
