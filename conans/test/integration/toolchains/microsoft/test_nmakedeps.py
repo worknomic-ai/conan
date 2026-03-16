@@ -45,3 +45,34 @@ def test_nmakedeps():
     # Checking that libs and system libs are added to _LINK_
     for flag in (r"pkg-1\.lib", r"pkg-2\.lib", r"pkg-3\.lib", r"pkg-4\.lib", r"ws2_32\.lib"):
         assert re.search(fr'set "_LINK_=%_LINK_%.*\s{flag}(?:\s|")', bat_file)
+
+
+@pytest.mark.skipif(platform.system() != "Windows", reason="Only for windows")
+def test_nmakedeps_spaces_and_quotes():
+    client = TestClient()
+    conanfile = textwrap.dedent('''
+        from conan import ConanFile
+        class Pkg(ConanFile):
+            settings = "os", "arch", "compiler", "build_type"
+            name = "test-nmakedeps"
+            version = "1.0"
+
+            def package_info(self):
+                self.cpp_info.components["pkg-1"].libs = ["pkg 1"]
+                self.cpp_info.components["pkg-1"].defines = ["TEST_DEF=With Space"]
+                self.cpp_info.components["pkg-1"].cflags = ["-I", "C:\\My Path"]
+                self.cpp_info.components["pkg-1"].system_libs = ["ws2 32"]
+                self.cpp_info.components["pkg-1"].sharedlinkflags = ["/OPT:VAR=1 2 3"]
+    ''')
+    client.save({"conanfile.py": conanfile})
+    client.run("create . -s arch=x86_64")
+    client.run("install --requires=test-nmakedeps/1.0"
+               " -g NMakeDeps -s build_type=Release -s arch=x86_64")
+    bat_file = client.load("conannmakedeps.bat")
+    
+    assert re.search(r'set "_LINK_=%_LINK_%.*\s"pkg 1\.lib"(?:\s|")', bat_file)
+    assert re.search(r'set "_LINK_=%_LINK_%.*\s"ws2 32\.lib"(?:\s|")', bat_file)
+    assert re.search(r'set "CL=%CL%.*\s/DTEST_DEF#\\"With Space\\""(?:\s|")', bat_file)
+    assert re.search(r'set "CL=%CL%.*\s"-I"(?:\s|")', bat_file)
+    assert re.search(r'set "CL=%CL%.*\s"C:\\My Path"(?:\s|")', bat_file)
+    assert re.search(r'set "_LINK_=%_LINK_%.*\s"/OPT:VAR=1 2 3"(?:\s|")', bat_file)

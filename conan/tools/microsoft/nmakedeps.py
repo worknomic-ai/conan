@@ -34,15 +34,18 @@ class NMakeDeps(object):
 
             lib_paths = ";".join(cpp_info.libdirs or [])
 
+            def _quote_if_spaces(text):
+                return f'"{text}"' if ' ' in text and '"' not in text else text
+
             def format_lib(lib):
                 ext = os.path.splitext(lib)[1]
                 return lib if ext in (".so", ".lib", ".a", ".dylib", ".bc") else '%s.lib' % lib
 
             ret = []
-            ret.extend(cpp_info.exelinkflags or [])
-            ret.extend(cpp_info.sharedlinkflags or [])
-            ret.extend([format_lib(lib) for lib in cpp_info.libs or []])
-            ret.extend([format_lib(lib) for lib in cpp_info.system_libs or []])
+            ret.extend([_quote_if_spaces(f) for f in cpp_info.exelinkflags or []])
+            ret.extend([_quote_if_spaces(f) for f in cpp_info.sharedlinkflags or []])
+            ret.extend([_quote_if_spaces(format_lib(lib)) for lib in cpp_info.libs or []])
+            ret.extend([_quote_if_spaces(format_lib(lib)) for lib in cpp_info.system_libs or []])
             link_args = " ".join(ret)
 
             def format_define(define):
@@ -56,9 +59,9 @@ class NMakeDeps(object):
                 return f"/D{define}"
 
             cl_flags = [f'-I"{p}"' for p in cpp_info.includedirs or []]
-            cl_flags.extend(cpp_info.cflags or [])
-            cl_flags.extend(cpp_info.cxxflags or [])
-            cl_flags.extend([format_define(define) for define in cpp_info.defines or []])
+            cl_flags.extend([_quote_if_spaces(f) for f in cpp_info.cflags or []])
+            cl_flags.extend([_quote_if_spaces(f) for f in cpp_info.cxxflags or []])
+            cl_flags.extend([_quote_if_spaces(format_define(define)) for define in cpp_info.defines or []])
 
             env = Environment()
             env.append("CL", " ".join(cl_flags))
