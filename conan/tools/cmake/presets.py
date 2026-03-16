@@ -60,7 +60,7 @@ class _CMakePresets:
             test_preset = _CMakePresets._build_and_test_preset_fields(conanfile, multiconfig,
                                                                       preset_prefix)
             run_env = VirtualRunEnv(conanfile).vars()
-            test_env = dict(run_env.items(variable_reference="$env{{{name}}}"))
+            test_env = dict(run_env.items(variable_reference="$penv{{{name}}}"))
             if test_env:
                 test_preset["environment"] = test_env
             _CMakePresets._insert_preset(data, "testPresets", test_preset)
@@ -100,7 +100,7 @@ class _CMakePresets:
         build = _CMakePresets._build_and_test_preset_fields(conanfile, multiconfig, preset_prefix)
         test = _CMakePresets._build_and_test_preset_fields(conanfile, multiconfig, preset_prefix)
         run_env = VirtualRunEnv(conanfile).vars()
-        test_env = dict(run_env.items(variable_reference="$env{{{name}}}"))
+        test_env = dict(run_env.items(variable_reference="$penv{{{name}}}"))
         if test_env:
             test["environment"] = test_env
 
@@ -149,7 +149,7 @@ class _CMakePresets:
             }
 
         build_env = VirtualBuildEnv(conanfile).vars()
-        environment = dict(build_env.items(variable_reference="$env{{{name}}}"))
+        environment = dict(build_env.items(variable_reference="$penv{{{name}}}"))
         if environment:
             ret["environment"] = environment
 

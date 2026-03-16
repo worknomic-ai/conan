@@ -31,11 +31,11 @@ class MyPkg(ConanFile):
     # Check configurePresets
     conf = data["configurePresets"][0]
     assert conf["architecture"]["value"] == "ARM64"
-    assert conf["environment"]["MY_BUILD_VAR"] == "$env{MY_BUILD_VAR} my_build_value"
+    assert conf["environment"]["MY_BUILD_VAR"] == "$penv{MY_BUILD_VAR} my_build_value"
     
     # Check testPresets
     test = data["testPresets"][0]
-    assert test["environment"]["MY_RUN_VAR"] == "$env{MY_RUN_VAR} my_run_value"
+    assert test["environment"]["MY_RUN_VAR"] == "$penv{MY_RUN_VAR} my_run_value"
 
 def test_cmakepresets_without_arch_or_env():
     client = TestClient()
