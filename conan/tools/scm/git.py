@@ -99,11 +99,11 @@ class Git:
 
     def is_dirty(self):
         """
-        Returns if the current folder is dirty, running ``git status -s``
+        Returns if the current folder is dirty, running ``git status . -s``
 
         :return: True, if the current folder is dirty. Otherwise, False.
         """
-        status = self.run("status -s").strip()
+        status = self.run("status . -s").strip()
         return bool(status)
 
     def get_url_and_commit(self, remote="origin"):
