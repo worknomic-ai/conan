@@ -313,6 +313,7 @@ class ConanInfo:
         self.build_requires = build_requires_info
         self.python_requires = python_requires
         self.conf = conf
+        self.header_only = False
 
     def clone(self):
         """ Useful for build_id implementation and for compatibility()
@@ -325,6 +326,7 @@ class ConanInfo:
         result.build_requires = self.build_requires.copy()
         result.python_requires = self.python_requires.copy()
         result.conf = self.conf.copy()
+        result.header_only = self.header_only
         result.settings_target = self.settings_target.copy() if self.settings_target else None
         return result
 
@@ -394,6 +396,7 @@ class ConanInfo:
         self.options.clear()
         self.requires.clear()
         self.conf.clear()
+        self.header_only = True
 
     def validate(self):
         # If the options are not fully defined, this is also an invalid case

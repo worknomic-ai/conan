@@ -377,6 +377,8 @@ class GraphBinariesAnalyzer(object):
             if node.binary in (BINARY_BUILD, BINARY_EDITABLE_BUILD, BINARY_EDITABLE):
                 if not node.build_allowed:  # Only those that are forced to build, not only "missing"
                     required_nodes.add(node)
+            elif node.conanfile.conf.get("tools.build:download_source", check_type=bool):
+                required_nodes.add(node)
 
         root_nodes = required_nodes.copy()
         while root_nodes:
@@ -398,7 +400,8 @@ class GraphBinariesAnalyzer(object):
 
                 # Finally accumulate all needed nodes for marking binaries as SKIP download
                 news_req = [r for r in deps_required
-                            if r.binary in (BINARY_BUILD, BINARY_EDITABLE_BUILD, BINARY_EDITABLE)
+                            if (r.binary in (BINARY_BUILD, BINARY_EDITABLE_BUILD, BINARY_EDITABLE) or
+                                r.conanfile.conf.get("tools.build:download_source", check_type=bool))
                             if r not in required_nodes]  # Avoid already expanded before
                 new_root_nodes.update(news_req)  # For expanding the next iteration
                 required_nodes.update(deps_required)
