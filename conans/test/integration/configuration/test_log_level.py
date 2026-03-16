@@ -9,7 +9,7 @@ def test_log_level_env_var():
     os.environ["CONAN_LOG_LEVEL"] = "invalid_level"
     try:
         client.run("create .", assert_error=True)
-        assert "Environment variable 'CONAN_LOG_LEVEL' has invalid value: 'invalid_level'" in client.out or "Invalid configuration" in client.out or "invalid value" in client.out
+        assert "Environment variable 'CONAN_LOG_LEVEL' has invalid value: 'invalid_level'" in client.out
     finally:
         del os.environ["CONAN_LOG_LEVEL"]
 
