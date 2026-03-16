@@ -49,13 +49,21 @@ def test_shorthand_syntax():
                              'options': {'both_options': 'True'},
                              'package_settings': {},
                              'settings': {'os': 'WindowsCE', 'os.platform': 'conan'},
-                             'tool_requires': {}},
+                             'tool_requires': {},
+                             'replace_requires': {},
+                             'replace_tool_requires': {},
+                             'platform_requires': {},
+                             'platform_tool_requires': {}},
                    'host': {'build_env': '',
                             'conf': {'user.conf.cli': True, 'user.profile': True},
                             'options': {'both_options': 'True'},
                             'package_settings': {},
                             'settings': {'os': 'WindowsCE', 'os.platform': 'conan'},
-                            'tool_requires': {}}}
+                            'tool_requires': {},
+                            'replace_requires': {},
+                            'replace_tool_requires': {},
+                            'platform_requires': {},
+                            'platform_tool_requires': {}}}
 
     tc.save({"pre": textwrap.dedent("""
             [settings]
@@ -82,7 +90,11 @@ def test_shorthand_syntax():
                              'settings': {'compiler': 'clang',
                                           'compiler.version': '13',
                                           'os': 'Linux'},
-                             'tool_requires': {}},
+                             'tool_requires': {},
+                             'replace_requires': {},
+                             'replace_tool_requires': {},
+                             'platform_requires': {},
+                             'platform_tool_requires': {}},
                    'host': {'build_env': '',
                             'conf': {},
                             'options': {},
@@ -90,7 +102,11 @@ def test_shorthand_syntax():
                             'settings': {'compiler': 'clang',
                                          'compiler.version': '13',
                                          'os': 'Linux'},
-                            'tool_requires': {}}}
+                            'tool_requires': {},
+                            'replace_requires': {},
+                            'replace_tool_requires': {},
+                            'platform_requires': {},
+                            'platform_tool_requires': {}}}
 
     tc.run("profile show -pr:a=pre -pr:h=post -f=json")
     out = json.loads(tc.out)
@@ -101,7 +117,11 @@ def test_shorthand_syntax():
                              'settings': {'compiler': 'gcc',
                                           'compiler.version': '11',
                                           'os': 'Linux'},
-                             'tool_requires': {}},
+                             'tool_requires': {},
+                             'replace_requires': {},
+                             'replace_tool_requires': {},
+                             'platform_requires': {},
+                             'platform_tool_requires': {}},
                    'host': {'build_env': '',
                             'conf': {},
                             'options': {},
@@ -109,7 +129,11 @@ def test_shorthand_syntax():
                             'settings': {'compiler': 'gcc',
                                          'compiler.version': '13',
                                          'os': 'Linux'},
-                            'tool_requires': {}}}
+                            'tool_requires': {},
+                            'replace_requires': {},
+                            'replace_tool_requires': {},
+                            'platform_requires': {},
+                            'platform_tool_requires': {}}}
 
     tc.run("profile show -pr:a=pre -o:b foo=False -o:a foo=True -o:h foo=False -f=json")
     out = json.loads(tc.out)
@@ -120,7 +144,11 @@ def test_shorthand_syntax():
                              'settings': {'compiler': 'gcc',
                                           'compiler.version': '11',
                                           'os': 'Linux'},
-                             'tool_requires': {}},
+                             'tool_requires': {},
+                             'replace_requires': {},
+                             'replace_tool_requires': {},
+                             'platform_requires': {},
+                             'platform_tool_requires': {}},
                    'host': {'build_env': '',
                             'conf': {},
                             'options': {'foo': 'False'},
@@ -128,7 +156,11 @@ def test_shorthand_syntax():
                             'settings': {'compiler': 'gcc',
                                          'compiler.version': '11',
                                          'os': 'Linux'},
-                            'tool_requires': {}}}
+                            'tool_requires': {},
+                            'replace_requires': {},
+                            'replace_tool_requires': {},
+                            'platform_requires': {},
+                            'platform_tool_requires': {}}}
 
 
 def test_profile_show_json():

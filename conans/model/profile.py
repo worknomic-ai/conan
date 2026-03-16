@@ -17,6 +17,10 @@ class Profile(object):
         self.package_settings = defaultdict(OrderedDict)
         self.options = Options()
         self.tool_requires = OrderedDict()  # ref pattern: list of ref
+        self.replace_requires = OrderedDict()
+        self.replace_tool_requires = OrderedDict()
+        self.platform_requires = OrderedDict()
+        self.platform_tool_requires = OrderedDict()
         self.system_tools = []
         self.conf = ConfDefinition()
         self.buildenv = ProfileEnvironment()
@@ -30,12 +34,15 @@ class Profile(object):
         return self.dumps()
 
     def serialize(self):
-        # TODO: Remove it seems dead
         return {
             "settings": self.settings,
             "package_settings": self.package_settings,
             "options": self.options.serialize(),
-            "tool_requires": self.tool_requires,
+            "tool_requires": {p: [repr(r) for r in reqs] for p, reqs in self.tool_requires.items()},
+            "replace_requires": {p: [repr(r) for r in reqs] for p, reqs in self.replace_requires.items()},
+            "replace_tool_requires": {p: [repr(r) for r in reqs] for p, reqs in self.replace_tool_requires.items()},
+            "platform_requires": {p: [repr(r) for r in reqs] for p, reqs in self.platform_requires.items()},
+            "platform_tool_requires": {p: [repr(r) for r in reqs] for p, reqs in self.platform_tool_requires.items()},
             "conf": self.conf.serialize(),
             # FIXME: Perform a serialize method for ProfileEnvironment
             "build_env": self.buildenv.dumps()
@@ -72,6 +79,14 @@ class Profile(object):
             for pattern, req_list in self.tool_requires.items():
                 result.append("%s: %s" % (pattern, ", ".join(str(r) for r in req_list)))
 
+        for attr_name in ("replace_requires", "replace_tool_requires",
+                          "platform_requires", "platform_tool_requires"):
+            attr_dict = getattr(self, attr_name)
+            if attr_dict:
+                result.append(f"[{attr_name}]")
+                for pattern, req_list in attr_dict.items():
+                    result.append("%s: %s" % (pattern, ", ".join(str(r) for r in req_list)))
+
         if self.system_tools:
             result.append("[system_tools]")
             result.extend(str(t) for t in self.system_tools)
@@ -97,21 +112,29 @@ class Profile(object):
         self.update_settings(other.settings)
         self.update_package_settings(other.package_settings)
         self.options.update_options(other.options)
-        # It is possible that build_requires are repeated, or same package but different versions
-        for pattern, req_list in other.tool_requires.items():
-            existing_build_requires = self.tool_requires.get(pattern)
-            existing = OrderedDict()
-            if existing_build_requires is not None:
-                for br in existing_build_requires:
-                    # TODO: Understand why sometimes they are str and other are RecipeReference
-                    r = RecipeReference.loads(br) \
-                         if not isinstance(br, RecipeReference) else br
-                    existing[r.name] = br
-            for req in req_list:
-                r = RecipeReference.loads(req) \
-                     if not isinstance(req, RecipeReference) else req
-                existing[r.name] = req
-            self.tool_requires[pattern] = list(existing.values())
+
+        def _compose_requires_dict(target, source):
+            # It is possible that build_requires are repeated, or same package but different versions
+            for pattern, req_list in source.items():
+                existing_build_requires = target.get(pattern)
+                existing = OrderedDict()
+                if existing_build_requires is not None:
+                    for br in existing_build_requires:
+                        # TODO: Understand why sometimes they are str and other are RecipeReference
+                        r = RecipeReference.loads(br) \
+                             if not isinstance(br, RecipeReference) else br
+                        existing[r.name] = br
+                for req in req_list:
+                    r = RecipeReference.loads(req) \
+                         if not isinstance(req, RecipeReference) else req
+                    existing[r.name] = req
+                target[pattern] = list(existing.values())
+
+        _compose_requires_dict(self.tool_requires, other.tool_requires)
+        _compose_requires_dict(self.replace_requires, other.replace_requires)
+        _compose_requires_dict(self.replace_tool_requires, other.replace_tool_requires)
+        _compose_requires_dict(self.platform_requires, other.platform_requires)
+        _compose_requires_dict(self.platform_tool_requires, other.platform_tool_requires)
 
         current_system_tools = {r.name: r for r in self.system_tools}
         current_system_tools.update({r.name: r for r in other.system_tools})
