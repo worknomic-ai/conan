@@ -139,3 +139,10 @@ def test_profile_show_json():
     profile = json.loads(c.stdout)
     assert profile["build"]["settings"] == {"os": "Windows"}
     assert profile["host"]["settings"] == {"os": "Linux"}
+
+def test_profile_show_tool_requires_json():
+    c = TestClient()
+    c.save({"myprofile": "[tool_requires]\nmytool/1.0.0"})
+    c.run("profile show -pr myprofile --format=json")
+    profile = json.loads(c.stdout)
+    assert profile["host"]["tool_requires"] == {"*": ["mytool/1.0.0"]}
