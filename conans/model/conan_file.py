@@ -350,8 +350,3 @@ class ConanFile:
         self.runenv_info.deploy_base_folder(self.package_folder, deploy_folder)
         self.folders.set_base_package(deploy_folder)
 
-    def deploy(self):
-        """
-        Custom deployment method for artifacts
-        """
-

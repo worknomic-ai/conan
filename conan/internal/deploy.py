@@ -44,7 +44,7 @@ def do_deploys(conan_api, graph, deploy, deploy_package, deploy_folder):
     if deploy_package:
         for node in graph.ordered_iterate():
             conanfile = node.conanfile
-            if not conanfile.ref or not any(ref_matches(conanfile.ref, p, None)
+            if not conanfile.ref or not any(ref_matches(conanfile.ref, p, conanfile._conan_is_consumer)
                                             for p in deploy_package):
                 continue
             if hasattr(conanfile, "deploy"):

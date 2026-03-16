@@ -44,3 +44,40 @@ def test_deploy_method():
     c.run("install --requires=pkg/0.1 --deployer-package=pkg/* --deployer-folder=mydeploy")
     assert "dep/0.1: Executing deploy()" not in c.out
     assert "pkg/0.1: Executing deploy()" in c.out
+
+def test_deploy_method_no_false_positives_and_nameless_consumer():
+    c = TestClient()
+    conanfile_with_deploy = textwrap.dedent("""
+        from conan import ConanFile
+        class Pkg(ConanFile):
+            name = "pkg"
+            version = "0.1"
+            def deploy(self):
+                self.output.info("MY DEPLOY METHOD RUNNING")
+            """)
+    conanfile_no_deploy = textwrap.dedent("""
+        from conan import ConanFile
+        class NormalPkg(ConanFile):
+            name = "normal"
+            version = "0.1"
+            """)
+    
+    c.save({
+        "pkg/conanfile.py": conanfile_with_deploy,
+        "normal/conanfile.py": conanfile_no_deploy,
+        "consumer/conanfile.py": textwrap.dedent("""
+            from conan import ConanFile
+            class Consumer(ConanFile):
+                requires = 'pkg/0.1', 'normal/0.1'
+        """)
+    })
+    c.run("create pkg")
+    c.run("create normal")
+    
+    # Test that nameless consumer works without crashing, and normal package does not report "Executing deploy()"
+    c.run("install consumer/conanfile.py --deployer-package=*")
+    
+    assert "MY DEPLOY METHOD RUNNING" in c.out
+    assert "Executing deploy()" in c.out
+    assert "normal/0.1: Executing deploy()" not in c.out
+
