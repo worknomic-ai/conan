@@ -114,7 +114,10 @@ class CMake(object):
         with chdir(self, build_folder):
             self._conanfile.run(command)
 
-    def _build(self, build_type=None, target=None, cli_args=None, build_tool_args=None, env=""):
+    def _build(self, build_type=None, target=None, cli_args=None, build_tool_args=None, env=None,
+               stdout=None, stderr=None):
+        if env is None:
+            env = ""
         bf = self._conanfile.build_folder
         is_multi = is_multi_configuration(self._generator)
         if build_type and not is_multi:
@@ -146,9 +149,10 @@ class CMake(object):
         arg_list = ['"{}"'.format(bf), build_config, cmd_args_to_string(args)]
         arg_list = " ".join(filter(None, arg_list))
         command = "%s --build %s" % (self._cmake_program, arg_list)
-        self._conanfile.run(command, env=env)
+        self._conanfile.run(command, env=env, stdout=stdout, stderr=stderr)
 
-    def build(self, build_type=None, target=None, cli_args=None, build_tool_args=None):
+    def build(self, build_type=None, target=None, cli_args=None, build_tool_args=None,
+              stdout=None, stderr=None):
         """
 
         :param build_type: Use it only to override the value defined in the ``settings.build_type``
@@ -164,9 +168,9 @@ class CMake(object):
                                 line after the ``--`` indicator: ``cmake --build ... -- barg1 barg2``
         """
         self._conanfile.output.info("Running CMake.build()")
-        self._build(build_type, target, cli_args, build_tool_args)
+        self._build(build_type, target, cli_args, build_tool_args, stdout=stdout, stderr=stderr)
 
-    def install(self, build_type=None, component=None, cli_args=None):
+    def install(self, build_type=None, component=None, cli_args=None, stdout=None, stderr=None):
         """
         Equivalent to run ``cmake --build . --target=install``
 
@@ -206,9 +210,12 @@ class CMake(object):
 
         arg_list = " ".join(filter(None, arg_list))
         command = "%s %s" % (self._cmake_program, arg_list)
-        self._conanfile.run(command)
+        self._conanfile.run(command, stdout=stdout, stderr=stderr)
 
-    def test(self, build_type=None, target=None, cli_args=None, build_tool_args=None, env=""):
+    def test(self, build_type=None, target=None, cli_args=None, build_tool_args=None, env=None,
+             stdout=None, stderr=None):
+        if env is None:
+            env = ""
         """
         Equivalent to running cmake --build . --target=RUN_TESTS.
 
@@ -231,7 +238,53 @@ class CMake(object):
         # The default for ``test()`` is both the buildenv and the runenv
         env = ["conanbuild", "conanrun"] if env == "" else env
         self._build(build_type=build_type, target=target, cli_args=cli_args,
-                    build_tool_args=build_tool_args, env=env)
+                    build_tool_args=build_tool_args, env=env, stdout=stdout, stderr=stderr)
+
+    def ctest(self, cli_args=None, build_type=None, env=None, stdout=None, stderr=None):
+        """
+        Equivalent to running ctest ...
+
+        :param cli_args: A list of arguments ``[arg1, arg2, ...]`` that will be passed to the
+                         ``ctest arg1 arg2`` command directly.
+        :param build_type: Use it only to override the value defined in the settings.build_type.
+                           It can fail if the build is single configuration (e.g. Unix Makefiles),
+                           as in that case the build type must be specified at configure time,
+                           not build type.
+        """
+        if env is None:
+            env = ""
+        if self._conanfile.conf.get("tools.build:skip_test", check_type=bool):
+            return
+
+        self._conanfile.output.info("Running CMake.ctest()")
+
+        bt = build_type or self._conanfile.settings.get_safe("build_type")
+        if not bt:
+            raise ConanException("build_type setting should be defined.")
+        is_multi = is_multi_configuration(self._generator)
+        build_config = ["-C", f'"{bt}"'] if bt and is_multi else []
+
+        arg_list = []
+        if build_config:
+            arg_list.extend(build_config)
+        if cli_args:
+            arg_list.extend(cli_args)
+
+        env = ["conanbuild", "conanrun"] if env == "" else env
+
+        ctest_program = "ctest"
+        if self._cmake_program:
+            if self._cmake_program.endswith("cmake.exe"):
+                ctest_program = self._cmake_program[:-9] + "ctest.exe"
+            elif self._cmake_program.endswith("cmake"):
+                ctest_program = self._cmake_program[:-5] + "ctest"
+            else:
+                ctest_program = self._cmake_program.replace("cmake", "ctest")
+
+        arg_list = " ".join(filter(None, arg_list))
+        command = f"{ctest_program} {arg_list}".strip()
+        with chdir(self, self._conanfile.build_folder):
+            self._conanfile.run(command, env=env, stdout=stdout, stderr=stderr)
 
     @property
     def _compilation_verbosity_arg(self):
