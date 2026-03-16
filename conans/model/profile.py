@@ -38,11 +38,11 @@ class Profile(object):
             "settings": self.settings,
             "package_settings": self.package_settings,
             "options": self.options.serialize(),
-            "tool_requires": {p: [repr(r) for r in reqs] for p, reqs in self.tool_requires.items()},
-            "replace_requires": {p: [repr(r) for r in reqs] for p, reqs in self.replace_requires.items()},
-            "replace_tool_requires": {p: [repr(r) for r in reqs] for p, reqs in self.replace_tool_requires.items()},
-            "platform_requires": {p: [repr(r) for r in reqs] for p, reqs in self.platform_requires.items()},
-            "platform_tool_requires": {p: [repr(r) for r in reqs] for p, reqs in self.platform_tool_requires.items()},
+            "tool_requires": {p: [str(r) for r in reqs] for p, reqs in self.tool_requires.items()},
+            "replace_requires": {p: [str(r) for r in reqs] for p, reqs in self.replace_requires.items()},
+            "replace_tool_requires": {p: [str(r) for r in reqs] for p, reqs in self.replace_tool_requires.items()},
+            "platform_requires": {p: [str(r) for r in reqs] for p, reqs in self.platform_requires.items()},
+            "platform_tool_requires": {p: [str(r) for r in reqs] for p, reqs in self.platform_tool_requires.items()},
             "conf": self.conf.serialize(),
             # FIXME: Perform a serialize method for ProfileEnvironment
             "build_env": self.buildenv.dumps()
