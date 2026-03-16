@@ -5,6 +5,8 @@ import platform
 from conan.api.output import ConanOutput
 from conan.tools.cmake.layout import get_build_folder_custom_vars
 from conan.tools.cmake.utils import is_multi_configuration
+from conan.tools.env.virtualbuildenv import VirtualBuildEnv
+from conan.tools.env.virtualrunenv import VirtualRunEnv
 from conan.tools.microsoft import is_msvc
 from conans.client.graph.graph import RECIPE_CONSUMER
 from conan.errors import ConanException
@@ -55,7 +57,13 @@ class _CMakePresets:
             build_preset = _CMakePresets._build_and_test_preset_fields(conanfile, multiconfig,
                                                                        preset_prefix)
             _CMakePresets._insert_preset(data, "buildPresets", build_preset)
-            _CMakePresets._insert_preset(data, "testPresets", build_preset)
+            test_preset = _CMakePresets._build_and_test_preset_fields(conanfile, multiconfig,
+                                                                      preset_prefix)
+            run_env = VirtualRunEnv(conanfile).vars()
+            test_env = dict(run_env.items(variable_reference="$env{{{name}}}"))
+            if test_env:
+                test_preset["environment"] = test_env
+            _CMakePresets._insert_preset(data, "testPresets", test_preset)
             configure_preset = _CMakePresets._configure_preset(conanfile, generator, cache_variables,
                                                                toolchain_file, multiconfig,
                                                                preset_prefix)
@@ -90,12 +98,18 @@ class _CMakePresets:
         conf = _CMakePresets._configure_preset(conanfile, generator, cache_variables, toolchain_file,
                                                multiconfig, preset_prefix)
         build = _CMakePresets._build_and_test_preset_fields(conanfile, multiconfig, preset_prefix)
+        test = _CMakePresets._build_and_test_preset_fields(conanfile, multiconfig, preset_prefix)
+        run_env = VirtualRunEnv(conanfile).vars()
+        test_env = dict(run_env.items(variable_reference="$env{{{name}}}"))
+        if test_env:
+            test["environment"] = test_env
+
         ret = {"version": 3,
                "vendor": {"conan": {}},
                "cmakeMinimumRequired": {"major": 3, "minor": 15, "patch": 0},
                "configurePresets": [conf],
                "buildPresets": [build],
-               "testPresets": [build]
+               "testPresets": [test]
                }
         return ret
 
@@ -123,16 +137,21 @@ class _CMakePresets:
                     "value": toolset_arch,
                     "strategy": "external"
                 }
-            arch = {"x86": "x86",
-                    "x86_64": "x64",
-                    "armv7": "ARM",
-                    "armv8": "ARM64"}.get(conanfile.settings.get_safe("arch"))
+        arch = {"x86": "x86",
+                "x86_64": "x64",
+                "armv7": "ARM",
+                "armv8": "ARM64"}.get(conanfile.settings.get_safe("arch"))
 
-            if arch:
-                ret["architecture"] = {
-                    "value": arch,
-                    "strategy": "external"
-                }
+        if arch:
+            ret["architecture"] = {
+                "value": arch,
+                "strategy": "external"
+            }
+
+        build_env = VirtualBuildEnv(conanfile).vars()
+        environment = dict(build_env.items(variable_reference="$env{{{name}}}"))
+        if environment:
+            ret["environment"] = environment
 
         ret["toolchainFile"] = toolchain_file
         if conanfile.build_folder:
