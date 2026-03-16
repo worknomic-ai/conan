@@ -988,3 +988,25 @@ def test_build_missing_build_requires():
     c.run("install app --build=missing")
     assert "- Build" not in c.out
     assert re.search(r"Skipped binaries(\s*)tool/0.1, tooldep/0.1", c.out)
+
+@pytest.mark.parametrize("host_version, assert_error, assert_msg", [
+        ("libgettext>", False, "gettext/0.2#"),
+        # Error cases, just checking that we fail gracefully - no tracebacks
+        ("libgettext", True, "Package 'gettext/<host_version:libgettext' not resolved"),
+        (":>", True, "app/1.0 require ':/<host_version::>': didn't find a matching host dependency"),
+        (">", True, "app/1.0 require '/<host_version:>': didn't find a matching host dependency"),
+        (":", True, "Package 'gettext/<host_version::' not resolved"),
+        ("", True, "Package 'gettext/<host_version:' not resolved: No remote defined")
+    ])
+def test_host_version_different_ref( host_version, assert_error, assert_msg):
+    tc = TestClient()
+    tc.save({"gettext/conanfile.py": GenConanfile("gettext"),
+             "libgettext/conanfile.py": GenConanfile("libgettext"),
+             "app/conanfile.py": GenConanfile("app", "1.0").with_requires("libgettext/[>0.1]")
+                                               .with_tool_requirement(f"gettext/<host_version:{host_version}")})
+    tc.run("create libgettext --version=0.2")
+    tc.run("create gettext --version=0.1")
+    tc.run("create gettext --version=0.2")
+
+    tc.run("create app", assert_error=assert_error)
+    assert assert_msg in tc.out
