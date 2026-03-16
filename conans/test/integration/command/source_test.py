@@ -290,3 +290,45 @@ def test_source_python_requires():
     c.run("source . ")
     assert "pytool/0.1: Not found in local cache, looking in remotes" in c.out
     assert "pytool/0.1: Downloaded recipe" in c.out
+
+def test_tool_requires_in_source():
+    client = TestClient()
+    
+    # Create a tool
+    client.save({
+        "tool/conanfile.py": """
+import os
+from conan import ConanFile
+from conan.tools.files import save
+class Tool(ConanFile):
+    name = "mytool"
+    version = "1.0"
+    def package(self):
+        save(self, os.path.join(self.package_folder, "bin", "mytool.bat"), "@echo off\\npython \\"%~dp0mytool.py\\"")
+        save(self, os.path.join(self.package_folder, "bin", "mytool.sh"), "#!/bin/sh\\npython \\"$(dirname \\"$0\\")/mytool.py\\"")
+        save(self, os.path.join(self.package_folder, "bin", "mytool.py"), "print('HELLO FROM MYTOOL')")
+        os.chmod(os.path.join(self.package_folder, "bin", "mytool.sh"), 0o777)
+    def package_info(self):
+        self.cpp_info.bindirs = ["bin"]
+"""
+    })
+    client.run("create tool")
+
+    # Use the tool in source()
+    client.save({
+        "consumer/conanfile.py": """
+from conan import ConanFile
+import platform
+
+class Consumer(ConanFile):
+    name = "consumer"
+    version = "1.0"
+    tool_requires = "mytool/1.0"
+    
+    def source(self):
+        cmd = "mytool.bat" if platform.system() == "Windows" else "mytool.sh"
+        self.run(cmd)
+"""
+    })
+    client.run("create consumer")
+    assert "HELLO FROM MYTOOL" in client.out

@@ -961,3 +961,43 @@ class TestGitShallowTagClone:
             assert "pkg/0.1: URL: {}".format(url) in c.out
             assert "pkg/0.1: COMMIT IN REMOTE: False" in c.out
             assert "pkg/0.1: DIRTY: False" in c.out
+@pytest.mark.tool("git")
+class TestGitIsDirtyScoped:
+    conanfile = textwrap.dedent("""
+        from conan import ConanFile
+        from conan.tools.scm import Git
+
+        class Pkg(ConanFile):
+            name = "pkg"
+            version = "0.1"
+
+            def export(self):
+                git = Git(self, self.recipe_folder)
+                self.output.info("DIRTY: {}".format(git.is_dirty()))
+        """)
+
+    def test_is_dirty_scoped(self):
+        """
+        is_dirty() is scoped to the specified folder, it doesn't fail if a parent/sibling
+        directory has uncommitted changes.
+        """
+        c = TestClient()
+        c.save({"conanfile.py": self.conanfile,
+                "subfolder/conanfile.py": self.conanfile})
+        c.init_git_repo()
+
+        # We make the root dirty
+        c.save({"some_file.txt": "modified content"})
+
+        # Export in root should be dirty
+        c.run("export .")
+        assert "pkg/0.1: DIRTY: True" in c.out
+
+        # Export in subfolder should be NOT dirty, because the dirty file is in the root (parent of subfolder)
+        c.run("export subfolder")
+        assert "pkg/0.1: DIRTY: False" in c.out
+
+        # Now we make the subfolder dirty
+        c.save({"subfolder/other_file.txt": "modified content"})
+        c.run("export subfolder")
+        assert "pkg/0.1: DIRTY: True" in c.out

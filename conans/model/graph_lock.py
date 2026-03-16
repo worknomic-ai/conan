@@ -64,6 +64,12 @@ class _LockRequires:
                 raise ConanException(f"Cannot add {ref} to lockfile, already exists")
             self._requires[ref] = package_ids
 
+
+    def remove(self, pattern):
+        to_remove = [ref for ref in self._requires if ref.matches(pattern, is_consumer=False)]
+        for ref in to_remove:
+            del self._requires[ref]
+
     def sort(self):
         self._requires = OrderedDict(reversed(sorted(self._requires.items())))
 
@@ -170,6 +176,17 @@ class Lockfile(object):
             for r in python_requires:
                 self._python_requires.add(r)
             self._python_requires.sort()
+
+    def remove(self, requires=None, build_requires=None, python_requires=None):
+        if requires:
+            for r in requires:
+                self._requires.remove(r)
+        if build_requires:
+            for r in build_requires:
+                self._build_requires.remove(r)
+        if python_requires:
+            for r in python_requires:
+                self._python_requires.remove(r)
 
     @staticmethod
     def deserialize(data):
