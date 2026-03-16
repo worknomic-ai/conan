@@ -43,10 +43,13 @@ class ExportAPI:
 
         import os
         import shutil
+        from conans.util.files import mkdir
         source_metadata = os.path.join(conanfile.build_folder, "metadata")
         dest_metadata = pkg_layout.metadata()
         if os.path.exists(source_metadata):
-            shutil.copytree(source_metadata, dest_metadata, symlinks=True, dirs_exist_ok=True)
+            shutil.copytree(source_metadata, dest_metadata, symlinks=True)
+        else:
+            mkdir(dest_metadata)
             
         conanfile.folders.set_base_pkg_metadata(dest_metadata)
 
