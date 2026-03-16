@@ -56,3 +56,6 @@ def test_deployer_absolute_paths_cli():
         content = client.load("pkg-release-x86_64-data.cmake")
         assert abs_path_include in content
         assert f"full_deploy{abs_path_include}" not in content
+        
+        # Check that the internal package folders were properly relocated
+        assert "full_deploy" in content

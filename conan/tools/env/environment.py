@@ -168,12 +168,12 @@ class _EnvValue:
         for i, v in enumerate(self._values):
             if v is _EnvVarPlaceHolder:
                 continue
-            if os.path.isabs(v):
-                continue
             try:
                 rel_path = os.path.relpath(v, package_folder)
             except ValueError:
-                rel_path = v
+                continue
+            if rel_path.startswith("..") or os.path.isabs(rel_path):
+                continue
             self._values[i] = os.path.join(deploy_folder, rel_path)
 
     def set_relative_base_folder(self, folder):
