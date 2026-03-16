@@ -8,8 +8,10 @@ def test_log_level_env_var():
     import os
     os.environ["CONAN_LOG_LEVEL"] = "invalid_level"
     try:
-        client.run("create .", assert_error=True)
+        error = client.run("create .", assert_error=True)
         assert "Environment variable 'CONAN_LOG_LEVEL' has invalid value: 'invalid_level'" in client.out
+        from conan.cli.exit_codes import ERROR_INVALID_CONFIGURATION
+        assert error == ERROR_INVALID_CONFIGURATION
     finally:
         del os.environ["CONAN_LOG_LEVEL"]
 

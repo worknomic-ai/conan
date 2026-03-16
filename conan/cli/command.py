@@ -108,7 +108,8 @@ class ConanArgumentParser(argparse.ArgumentParser):
             try:
                 ConanOutput.define_log_level(v)
             except ConanException:
-                raise ConanException(f"Environment variable 'CONAN_LOG_LEVEL' has invalid value: '{v}'")
+                from conan.errors import ConanInvalidConfiguration
+                raise ConanInvalidConfiguration(f"Environment variable 'CONAN_LOG_LEVEL' has invalid value: '{v}'")
         else:
             ConanOutput.define_log_level(v)
         return args
