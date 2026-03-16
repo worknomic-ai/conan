@@ -57,9 +57,24 @@ class ClientMigrator(Migrator):
 
 
 def _migrate_pkg_db_lru(cache_folder, old_version):
+    from conan.api.subapi.config import ConfigAPI
+
+    class DummyAPI:
+        def __init__(self, cache_folder):
+            self.cache_folder = cache_folder
+
+    config = ConfigAPI(DummyAPI(cache_folder)).global_conf
+    storage_path = config.get("core.cache:storage_path")
+    if storage_path:
+        db_filename = os.path.join(storage_path, 'cache.sqlite3')
+    else:
+        db_filename = os.path.join(cache_folder, 'p', 'cache.sqlite3')
+
+    if not os.path.exists(db_filename):
+        return
+
     ConanOutput().warning(f"Upgrade cache from Conan version '{old_version}'")
     ConanOutput().warning("Running 2.0.14 Cache DB migration to add LRU column")
-    db_filename = os.path.join(cache_folder, 'p', 'cache.sqlite3')
     connection = sqlite3.connect(db_filename, isolation_level=None,
                                  timeout=1, check_same_thread=False)
     try:
@@ -76,7 +91,19 @@ def _migrate_pkg_db_lru(cache_folder, old_version):
             import os
             import sqlite3
             def migrate(cache_folder):
-                db = os.path.join(cache_folder, 'p', 'cache.sqlite3')
+                from conan.api.subapi.config import ConfigAPI
+
+                class DummyAPI:
+                    def __init__(self, cache_folder):
+                        self.cache_folder = cache_folder
+
+                config = ConfigAPI(DummyAPI(cache_folder)).global_conf
+                storage_path = config.get("core.cache:storage_path")
+                if storage_path:
+                    db = os.path.join(storage_path, 'cache.sqlite3')
+                else:
+                    db = os.path.join(cache_folder, 'p', 'cache.sqlite3')
+
                 connection = sqlite3.connect(db, isolation_level=None, timeout=1,
                                              check_same_thread=False)
                 rec_cols = 'reference, rrev, path, timestamp'
