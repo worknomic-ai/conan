@@ -39,7 +39,7 @@ def test_nmakedeps():
     # Checking that defines are added to CL
     for flag in (
         r"/DTEST_DEFINITION1", r"/DTEST_DEFINITION2#0",
-        r"/DTEST_DEFINITION3#", r'/DTEST_DEFINITION4#"foo"',
+        r"/DTEST_DEFINITION3#", r'/DTEST_DEFINITION4#foo',
     ):
         assert re.search(fr'set "CL=%CL%.*\s{flag}(?:\s|")', bat_file)
     # Checking that libs and system libs are added to _LINK_
@@ -73,6 +73,6 @@ def test_nmakedeps_spaces_and_quotes():
     assert re.search(r'set "_LINK_=%_LINK_%.*\s"pkg 1\.lib"(?:\s|")', bat_file)
     assert re.search(r'set "_LINK_=%_LINK_%.*\s"ws2 32\.lib"(?:\s|")', bat_file)
     assert re.search(r'set "CL=%CL%.*\s/DTEST_DEF#"With Space""(?:\s|")', bat_file)
-    assert re.search(r'set "CL=%CL%.*\s"-I"(?:\s|")', bat_file)
+    assert re.search(r'set "CL=%CL%.*\s-I(?:\s|")', bat_file)
     assert re.search(r'set "CL=%CL%.*\s"C:\\My Path"(?:\s|")', bat_file)
     assert re.search(r'set "_LINK_=%_LINK_%.*\s"/OPT:VAR=1 2 3"(?:\s|")', bat_file)
