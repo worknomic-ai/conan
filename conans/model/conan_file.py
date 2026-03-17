@@ -317,8 +317,8 @@ class ConanFile:
         assert self.generators_folder is not None, "`generators_folder` is `None`"
         return Path(self.generators_folder)
 
-    def run(self, command, stdout=None, cwd=None, ignore_errors=False, env="", quiet=False,
-            shell=True, scope="build", stderr=None):
+    def run(self, command, stdout=None, stderr=None, cwd=None, ignore_errors=False, env="", quiet=False,
+            shell=True, scope="build"):
         # NOTE: "self.win_bash" is the new parameter "win_bash" for Conan 2.0
         command = self._conan_helpers.cmd_wrapper.wrap(command, conanfile=self)
         if env == "":  # This default allows not breaking for users with ``env=None`` indicating
