@@ -117,7 +117,16 @@ def test_replace_requires_conflict_resolution():
         "dep2/conanfile.py": GenConanfile("dep", "2.0"),
         "pkga/conanfile.py": GenConanfile("pkga", "1.0").with_require("dep/1.0"),
         "pkgb/conanfile.py": GenConanfile("pkgb", "1.0").with_require("dep/2.0"),
-        "consumer/conanfile.py": GenConanfile("consumer", "1.0").with_require("pkga/1.0").with_require("pkgb/1.0"),
+        "consumer/conanfile.py": """from conan import ConanFile
+class Consumer(ConanFile):
+    name = "consumer"
+    version = "1.0"
+    requires = "pkga/1.0", "pkgb/1.0"
+    def generate(self):
+        assert "mydep" in self.dependencies
+        assert self.dependencies["mydep"].ref.name == "mydep"
+        assert "dep" not in self.dependencies
+""",
         "profile": "[replace_requires]\ndep/*: mydep/1.0"
     })
     client.run("create mydep")
