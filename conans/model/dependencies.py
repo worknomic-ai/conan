@@ -63,6 +63,19 @@ class UserRequirementsDict(object):
     def __getitem__(self, name):
         return self.get(name)
 
+    def __contains__(self, ref):
+        try:
+            self._get(ref)
+            return True
+        except KeyError:
+            return False
+        except ConanException as e:
+            if "There are more than one requires matching" in str(e):
+                return True
+            return False
+        except TypeError:
+            return ref in self._data
+
     def __delitem__(self, name):
         r, _ = self._get(name)
         del self._data[r]

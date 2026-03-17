@@ -74,3 +74,26 @@ class CppInfoComponentsTest(unittest.TestCase):
                          info.components["Crypto"].bindirs)
         self.assertEqual(["different_res", "another_res", "another_other_res"],
                          info.components["Crypto"].resdirs)
+
+    def test_lazy_inheritance(self):
+        info = CppInfo(set_defaults=True)
+        info.includedirs = ["root_include"]
+        info.libdirs = ["root_lib"]
+        
+        # Component implicitly inherits from root
+        comp = info.components["comp"]
+        self.assertEqual(comp.includedirs, ["root_include"])
+        self.assertEqual(comp.libdirs, ["root_lib"])
+        
+        # Explicit override
+        comp.includedirs = ["comp_include"]
+        self.assertEqual(comp.includedirs, ["comp_include"])
+        
+        # Append modifies the component, not the root
+        comp.libdirs.append("comp_lib")
+        self.assertEqual(comp.libdirs, ["root_lib", "comp_lib"])
+        self.assertEqual(info.libdirs, ["root_lib"])
+
+        # Unassigned stays None in private state
+        self.assertIsNone(comp._bindirs)
+        self.assertEqual(comp.bindirs, ["bin"])  # inherits root default
