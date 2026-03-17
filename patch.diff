@@ -1,0 +1,54 @@
+--- conan/api/subapi/cache.py
++++ conan/api/subapi/cache.py
+@@ -115,28 +115,40 @@
+         out = ConanOutput()
+         name = os.path.basename(tgz_path)
++        
++        def _filter_tarinfo(tarinfo):
++            tarinfo.uid = tarinfo.gid = 0
++            tarinfo.uname = tarinfo.gname = "root"
++            tarinfo.mtime = 0
++            tarinfo.name = tarinfo.name.replace("\\", "/")
++            if tarinfo.isdir():
++                tarinfo.mode = 0o755
++            else:
++                tarinfo.mode = 0o644
++            return tarinfo
++
+         with open(tgz_path, "wb") as tgz_handle:
+             tgz = gzopen_without_timestamps(name, mode="w", fileobj=tgz_handle)
+             for ref, ref_bundle in package_list.refs().items():
+                 ref_layout = app.cache.recipe_layout(ref)
+                 recipe_folder = os.path.relpath(ref_layout.base_folder, cache_folder)
+-                ref_bundle["recipe_folder"] = recipe_folder
++                ref_bundle["recipe_folder"] = recipe_folder.replace("\\", "/")
+                 out.info(f"Saving {ref}: {recipe_folder}")
+-                tgz.add(os.path.join(cache_folder, recipe_folder), recipe_folder, recursive=True)
++                tgz.add(os.path.join(cache_folder, recipe_folder), recipe_folder.replace("\\", "/"), recursive=True, filter=_filter_tarinfo)
+                 for pref, pref_bundle in package_list.prefs(ref, ref_bundle).items():
+                     pref_layout = app.cache.pkg_layout(pref)
+                     pkg_folder = pref_layout.package()
+                     folder = os.path.relpath(pkg_folder, cache_folder)
+-                    pref_bundle["package_folder"] = folder
++                    pref_bundle["package_folder"] = folder.replace("\\", "/")
+                     out.info(f"Saving {pref}: {folder}")
+-                    tgz.add(os.path.join(cache_folder, folder), folder, recursive=True)
++                    tgz.add(os.path.join(cache_folder, folder), folder.replace("\\", "/"), recursive=True, filter=_filter_tarinfo)
+                     if os.path.exists(pref_layout.metadata()):
+                         metadata_folder = os.path.relpath(pref_layout.metadata(), cache_folder)
+-                        pref_bundle["metadata_folder"] = metadata_folder
++                        pref_bundle["metadata_folder"] = metadata_folder.replace("\\", "/")
+                         out.info(f"Saving {pref} metadata: {folder}")
+-                        tgz.add(os.path.join(cache_folder, metadata_folder), metadata_folder,
+-                                recursive=True)
++                        tgz.add(os.path.join(cache_folder, metadata_folder), metadata_folder.replace("\\", "/"),
++                                recursive=True, filter=_filter_tarinfo)
+             serialized = json.dumps(package_list.serialize(), indent=2)
+             info = tarfile.TarInfo(name="pkglist.json")
+@@ -159,7 +171,7 @@
+             recipe_layout = cache.get_or_create_ref_layout(ref)
+             recipe_folder = ref_bundle["recipe_folder"]
+-            rel_path = os.path.relpath(recipe_layout.base_folder, cache.cache_folder)
++            rel_path = os.path.relpath(recipe_layout.base_folder, cache.cache_folder).replace("\\", "/")
+             assert rel_path == recipe_folder, f"{rel_path}!={recipe_folder}"
+             out.info(f"Restore: {ref} in {recipe_folder}")
