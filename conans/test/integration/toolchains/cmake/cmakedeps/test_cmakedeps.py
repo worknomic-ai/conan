@@ -723,6 +723,7 @@ def test_conandeps_feature():
             class Dep1(ConanFile):
                 name = "dep1"
                 version = "1.0"
+                exports_sources = "*"
                 settings = "os", "compiler", "build_type", "arch"
                 generators = "CMakeToolchain"
 
@@ -760,6 +761,7 @@ def test_conandeps_feature():
             class Dep2(ConanFile):
                 name = "dep2"
                 version = "1.0"
+                exports_sources = "*"
                 settings = "os", "compiler", "build_type", "arch"
                 requires = "dep1/1.0"
                 generators = "CMakeDeps", "CMakeToolchain"
@@ -799,6 +801,7 @@ def test_conandeps_feature():
         class Consumer(ConanFile):
             name = "consumer"
             version = "1.0"
+            exports_sources = "*"
             settings = "os", "compiler", "build_type", "arch"
             requires = "dep2/1.0"
             generators = "CMakeToolchain", "CMakeDeps"
