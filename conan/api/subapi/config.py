@@ -68,3 +68,12 @@ class ConfigAPI:
                     """)
                 save(global_conf_path, default_global_conf)
         return self._new_config
+
+    @property
+    def settings_user(self):
+        cache_folder = self.conan_api.cache_folder
+        home_paths = HomePaths(cache_folder)
+        settings_user_path = home_paths.settings_path_user
+        if os.path.exists(settings_user_path):
+            return load(settings_user_path)
+        return ""
