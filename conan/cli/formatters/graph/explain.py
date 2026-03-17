@@ -120,4 +120,3 @@ def print_graph_explain(result):
                 cli_out_write(f"    {m}")
         else:
             cli_out_write("    No exact settings/options mismatch found (could be missing due to profile or package ID mode).")
-
