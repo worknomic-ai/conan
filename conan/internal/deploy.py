@@ -4,8 +4,8 @@ import shutil
 from conan.internal.cache.home_paths import HomePaths
 from conan.api.output import ConanOutput
 from conans.client.loader import load_python_file
-from conans.errors import ConanException
-from conans.util.files import rmdir, mkdir
+from conans.errors import ConanException, conanfile_exception_formatter
+from conans.util.files import rmdir, mkdir, chdir
 
 
 def _find_deployer(d, cache_deploy_folder):
@@ -40,6 +40,13 @@ def _find_deployer(d, cache_deploy_folder):
 def do_deploys(conan_api, graph, deploy, deploy_folder):
     mkdir(deploy_folder)
     # Handle the deploys
+    conanfile = graph.root.conanfile
+    if hasattr(conanfile, "deploy"):
+        conanfile.output.highlight("Calling deploy()")
+        conanfile.deploy_folder = deploy_folder
+        with chdir(deploy_folder):
+            with conanfile_exception_formatter(conanfile, "deploy"):
+                conanfile.deploy()
     cache = HomePaths(conan_api.cache_folder)
     for d in deploy or []:
         deployer = _find_deployer(d, cache.deployers_path)
