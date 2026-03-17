@@ -65,11 +65,14 @@ def full_deploy(graph, output_folder):
             folder_name = os.path.join(folder_name, build_type)
         if arch:
             folder_name = os.path.join(folder_name, arch)
-        _deploy_single(dep, conanfile, output_folder, folder_name)
+        _deploy_single(dep, conanfile, output_folder, dst=folder_name)
 
 
-def _deploy_single(dep, conanfile, output_folder, folder_name):
-    new_folder = os.path.join(output_folder, folder_name)
+def _deploy_single(dep, conanfile, output_folder, dst):
+    if os.path.isabs(dst):
+        new_folder = dst
+    else:
+        new_folder = os.path.join(output_folder, dst)
     rmdir(new_folder)
     symlinks = conanfile.conf.get("tools.deployer:symlinks", check_type=bool, default=True)
     try:
@@ -96,4 +99,4 @@ def direct_deploy(graph, output_folder):
     # dependency, the "reference" package. If the argument is a local path, then all direct
     # dependencies
     for dep in conanfile.dependencies.filter({"direct": True}).values():
-        _deploy_single(dep, conanfile, output_folder, dep.ref.name)
+        _deploy_single(dep, conanfile, output_folder, dst=dep.ref.name)
