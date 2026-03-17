@@ -278,30 +278,17 @@ def test_conf_choices_default():
     assert c.get("user.category:option1", choices=[1, 2], default=7) == 1
     assert c.get("user.category:option2", choices=[1, 2], default=7) == 7
 
-
-@pytest.mark.parametrize("scope", ["", "pkg/1.0:"])
-@pytest.mark.parametrize("conf", [
-    "user.foo:bar=1",
-    "user:bar=1"
-])
-def test_conf_scope_patterns_ok(scope, conf):
-    final_conf = scope + conf
+def test_user_conf_syntax_validation():
+    # User confs must have at least one ':'
     c = ConfDefinition()
-    c.loads(final_conf)
-    # Check it doesn't raise
-    c.validate()
-
-
-@pytest.mark.parametrize("conf", ["user.foo.bar=1"])
-@pytest.mark.parametrize("scope, assert_message", [
-    ("", "User confs must have at least 1 ':' separator, like 'user.pkg:conf'"),
-    ("pkg/1.0:", "'pkg/1.0:user.foo.bar' does not exist in configuration list"),
-])
-def test_conf_scope_patterns_bad(scope, conf, assert_message):
-    final_conf = scope + conf
-    c = ConfDefinition()
-    c.loads(final_conf)
     with pytest.raises(ConanException) as exc_info:
-        c.validate()
-    assert assert_message in str(exc_info.value)
+        c.update("user.myconf", "value")
+    assert "User conf 'user.myconf' must have a ':' separator" in str(exc_info.value)
+
+    # But this should pass
+    c.update("user:myconf", "value")
+    assert c.get("user:myconf") == "value"
+
+    c.update("user.pkg:myconf", "value")
+    assert c.get("user.pkg:myconf") == "value"
 

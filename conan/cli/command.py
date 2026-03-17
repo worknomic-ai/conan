@@ -102,23 +102,20 @@ class ConanArgumentParser(argparse.ArgumentParser):
 
     def parse_args(self, args=None, namespace=None):
         args = super().parse_args(args, namespace)
-        
-        conan_log_level = os.environ.get("CONAN_LOG_LEVEL")
+        from conans.util.env import get_env
+        from conan.api.output import ConanOutput
+        from conan.errors import ConanException
+
         if hasattr(args, "v"):
             v = args.v
-        elif conan_log_level:
-            v = conan_log_level
+            ConanOutput.define_log_level(v)
+        else:
+            v = get_env("CONAN_LOG_LEVEL", "status")
             try:
                 ConanOutput.define_log_level(v)
             except ConanException:
                 raise ConanException(f"Invalid log level '{v}' in CONAN_LOG_LEVEL environment variable.")
             args.v = v
-            return args
-        else:
-            v = "status"
-
-        ConanOutput.define_log_level(v)
-        args.v = v
         return args
 
 
