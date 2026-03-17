@@ -89,6 +89,34 @@ def test_replace_requires_multiple_and_mutation_regression():
     assert "otherdep/1.0" in client.out
     assert "dep/1.0 - Cache" not in client.out
 
+
+def test_replace_requires_conflict_resolution():
+    client = TestClient()
+    client.save({
+        "mydep/conanfile.py": GenConanfile("mydep", "1.0"),
+        "dep/conanfile.py": GenConanfile("dep", "1.0"),
+        "dep2/conanfile.py": GenConanfile("dep", "2.0"),
+        "pkga/conanfile.py": GenConanfile("pkga", "1.0").with_require("dep/1.0"),
+        "pkgb/conanfile.py": GenConanfile("pkgb", "1.0").with_require("dep/2.0"),
+        "consumer/conanfile.py": GenConanfile("consumer", "1.0").with_require("pkga/1.0").with_require("pkgb/1.0"),
+        "profile": "[replace_requires]\ndep/*: mydep/1.0"
+    })
+    client.run("create mydep")
+    client.run("create dep")
+    client.run("create dep2")
+    client.run("create pkga")
+    client.run("create pkgb")
+    
+    # Verify that without replace_requires it fails with conflict
+    client.run("create consumer --build=missing", assert_error=True)
+    assert "Conflict in pkga" in client.out or "conflict" in client.out.lower()
+    
+    # With replace_requires it succeeds
+    client.run("create consumer -pr profile --build=missing")
+    assert "mydep/1.0" in client.out
+    assert "dep/1.0 - Cache" not in client.out
+    assert "dep/2.0 - Cache" not in client.out
+
 def test_replace_requires_transitive_lookup():
     # Test that a transitive dependency replaced by a profile override can be
     # correctly looked up by its new name in the consumer's generate() or build() method.
