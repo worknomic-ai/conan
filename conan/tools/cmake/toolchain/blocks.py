@@ -66,9 +66,8 @@ class VSRuntimeBlock(Block):
             {% set genexpr.str = genexpr.str +
                                   '$<$<CONFIG:' + config + '>:' + value|string + '>' %}
         {% endfor %}
-        cmake_policy(GET CMP0091 POLICY_CMP0091)
-        if(NOT "${POLICY_CMP0091}" STREQUAL NEW)
-            message(FATAL_ERROR "The CMake policy CMP0091 must be NEW, but is '${POLICY_CMP0091}'")
+        if(POLICY CMP0091)
+            cmake_policy(SET CMP0091 NEW)
         endif()
         set(CMAKE_MSVC_RUNTIME_LIBRARY "{{ genexpr.str }}")
         """)
