@@ -252,3 +252,37 @@ def test_profile_core_confs_error(conf_name):
     with pytest.raises(ConanException) as exc:
         profile_loader.from_cli_args([], [], [], [conf_name], None)
     assert "[conf] 'core.*' configurations are not allowed in profiles" in str(exc.value)
+
+
+def test_profile_override_requires():
+    txt = textwrap.dedent("""
+        [replace_requires]
+        zlib/*: myzlib/1.2.3
+
+        [replace_tool_requires]
+        cmake/*: mycmake/3.20.0
+
+        [platform_requires]
+        openssl/3.0.0
+
+        [platform_tool_requires]
+        ninja/1.10.2
+
+        [system_tools]
+        old_ninja/1.10.0
+        """)
+    
+    from conans.client.profile_loader import _ProfileValueParser
+    p = _ProfileValueParser.get_profile(txt)
+
+    assert p.replace_requires == {"zlib/*": [RecipeReference.loads("myzlib/1.2.3")]}
+    assert p.replace_tool_requires == {"cmake/*": [RecipeReference.loads("mycmake/3.20.0")]}
+    assert p.platform_requires == [RecipeReference.loads("openssl/3.0.0")]
+    assert p.platform_tool_requires == [RecipeReference.loads("ninja/1.10.2")]
+    assert p.system_tools == [RecipeReference.loads("old_ninja/1.10.0")]
+
+    # Also test serialization
+    import json
+    serialized = p.serialize()
+    # It shouldn't crash with json.dumps
+    json.dumps(serialized)
