@@ -630,3 +630,41 @@ def test_remote_none_tool_requires():
     c.run(f"export-pkg pkg {settings} -s:b compiler.cppstd=17")  # This used to crash
     # No longer crash
     assert "pkg/0.1 (test package): Running test()" in c.out
+
+def test_export_pkg_metadata_folder():
+    """
+    Test that package_metadata_folder is correctly populated in the cache during export-pkg.
+    """
+    client = TestClient()
+    conanfile = textwrap.dedent("""
+        import os
+        from conan import ConanFile
+        from conan.tools.files import save, copy
+
+        class Pkg(ConanFile):
+            name = "pkg"
+            version = "0.1"
+
+            def build(self):
+                # Simulate writing metadata during local build
+                save(self, os.path.join(self.package_metadata_folder, "logs", "build.log"), "buildlog!!")
+
+            def package(self):
+                # Write more metadata during package
+                save(self, os.path.join(self.package_metadata_folder, "logs", "pkg.log"), "pkglog!!")
+                copy(self, "*", src=self.source_folder, dst=self.package_folder)
+    """)
+    client.save({"conanfile.py": conanfile, "source.txt": ""})
+    
+    # Local build
+    client.run("build .")
+    
+    # Export pkg
+    client.run("export-pkg .")
+    
+    # Check cache metadata folder
+    layout = client.created_layout()
+    metadata_folder = layout.metadata()
+    
+    assert os.path.exists(os.path.join(metadata_folder, "logs", "build.log"))
+    assert os.path.exists(os.path.join(metadata_folder, "logs", "pkg.log"))
