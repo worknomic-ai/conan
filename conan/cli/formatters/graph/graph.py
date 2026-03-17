@@ -1,4 +1,5 @@
 import json
+from collections import deque
 import os
 
 from jinja2 import Template, select_autoescape
@@ -62,9 +63,9 @@ class _Grapher(object):
 
         # We need a BFS to collect the reachable nodes
         reachable = set()
-        queue = [self._deps_graph.root] if self._deps_graph.root else []
+        queue = deque([self._deps_graph.root]) if self._deps_graph.root else deque()
         while queue:
-            node = queue.pop(0)
+            node = queue.popleft()
             if node not in reachable:
                 reachable.add(node)
                 queue.extend(node.neighbors())
