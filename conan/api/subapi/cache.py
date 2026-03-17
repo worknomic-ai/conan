@@ -123,7 +123,7 @@ class CacheAPI:
             if tarinfo.isdir():
                 tarinfo.mode = 0o755
             else:
-                tarinfo.mode = 0o644
+                tarinfo.mode = 0o755 if tarinfo.mode & 0o111 else 0o644
             return tarinfo
 
         with open(tgz_path, "wb") as tgz_handle:
@@ -149,6 +149,7 @@ class CacheAPI:
                                 recursive=True, filter=_filter_tarinfo)
             serialized = json.dumps(package_list.serialize(), indent=2)
             info = tarfile.TarInfo(name="pkglist.json")
+            _filter_tarinfo(info)
             data = serialized.encode('utf-8')
             info.size = len(data)
             tgz.addfile(tarinfo=info, fileobj=BytesIO(data))
@@ -158,6 +159,8 @@ class CacheAPI:
         with open(path, mode='rb') as file_handler:
             the_tar = tarfile.open(fileobj=file_handler)
             fileobj = the_tar.extractfile("pkglist.json")
+            if fileobj is None:
+                raise ConanException("Invalid cache archive: missing pkglist.json")
             pkglist = fileobj.read()
             the_tar.extractall(path=self.conan_api.cache_folder)
             the_tar.close()
