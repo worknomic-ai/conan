@@ -56,3 +56,21 @@ class Pkg(ConanFile):
         client.save({"conanfile.py": conanfile})
         client.run("source .")
         self.assertIn('conanfile.py: Buffer got msgs Hello', client.out)
+
+    def test_runner_capture_stderr(self):
+        conanfile = textwrap.dedent("""
+            import sys
+            from io import StringIO
+            from conan import ConanFile
+            class Pkg(ConanFile):
+                def source(self):
+                    my_buf = StringIO()
+                    self.run('%s -c "import sys; sys.stderr.write(\\'Hello Stderr\\'); sys.stdout.write(\\'Hello Stdout\\')"' % sys.executable, stderr=my_buf)
+                    self.output.info("Buffer got msgs: {}".format(my_buf.getvalue()))
+            """)
+        client = TestClient()
+        client.save({"conanfile.py": conanfile})
+        client.run("source .")
+        self.assertIn('conanfile.py: Buffer got msgs: Hello Stderr', client.out)
+        self.assertNotIn('Hello Stdout', client.out.split('conanfile.py: Buffer got msgs:')[1])
+        self.assertIn('Hello Stdout', client.out)

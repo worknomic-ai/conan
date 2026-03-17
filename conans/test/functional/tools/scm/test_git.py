@@ -91,6 +91,51 @@ class TestGitBasicCapture:
 
 
 @pytest.mark.tool("git")
+class TestGitIsDirty:
+    def test_is_dirty_local_only(self):
+        """
+        Verify that git.is_dirty() only checks the local folder, not the whole repository.
+        """
+        from conans.util.runners import check_output_runner
+        from unittest.mock import patch
+
+        c = TestClient()
+        conanfile = textwrap.dedent("""
+            from conan import ConanFile
+            from conan.tools.scm import Git
+
+            class Pkg(ConanFile):
+                name = "pkg"
+                version = "0.1"
+
+                def export(self):
+                    git = Git(self, self.recipe_folder)
+                    self.output.info("DIRTY: {}".format(git.is_dirty()))
+            """)
+        
+        c.save({
+            "root_file.txt": "root file",
+            "pkg/conanfile.py": conanfile,
+            "pkg/pkg_file.txt": "pkg file"
+        })
+        
+        def mock_check_output(cmd):
+            if cmd == "git status . -s":
+                return "M pkg/conanfile.py\n" if getattr(mock_check_output, "return_dirty", False) else ""
+            return check_output_runner(cmd)
+
+        with patch("conan.tools.scm.git.check_output_runner", side_effect=mock_check_output) as mock_run:
+            mock_check_output.return_dirty = False
+            c.run("export pkg")
+            assert "pkg/0.1: DIRTY: False" in c.out
+            mock_run.assert_any_call("git status . -s")
+
+            mock_check_output.return_dirty = True
+            c.run("export pkg")
+            assert "pkg/0.1: DIRTY: True" in c.out
+            mock_run.assert_any_call("git status . -s")
+
+
 class TestGitCaptureSCM:
     """ test the get_url_and_commit() high level method intended for SCM capturing
     into conandata.yaml
