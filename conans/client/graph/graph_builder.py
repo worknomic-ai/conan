@@ -233,13 +233,18 @@ class DepsGraphBuilder(object):
 
     @staticmethod
     def _resolved_system_tool(node, require, profile_build, profile_host, resolve_prereleases):
-        if node.context == CONTEXT_HOST and not require.build:  # Only for DIRECT tool_requires
-            return
-        system_tool = profile_build.system_tools if node.context == CONTEXT_BUILD \
-            else profile_host.system_tools
-        if system_tool:
+        profile = profile_build if node.context == CONTEXT_BUILD else profile_host
+        
+        if require.build:
+            # tool_requires use platform_tool_requires + system_tools
+            platform_requires = profile.platform_tool_requires + profile.system_tools
+        else:
+            # regular requires use platform_requires
+            platform_requires = profile.platform_requires
+
+        if platform_requires:
             version_range = require.version_range
-            for d in system_tool:
+            for d in platform_requires:
                 if require.ref.name == d.name:
                     if version_range:
                         if version_range.contains(d.version, resolve_prereleases):
@@ -322,6 +327,9 @@ class DepsGraphBuilder(object):
             else:
                 down_options = Options(options_values=node.conanfile.default_build_options)
 
+        if new_node.recipe == RECIPE_SYSTEM_TOOL:
+            # Platform packages don't receive downstream options
+            down_options = Options()
         self._prepare_node(new_node, profile_host, profile_build, down_options)
         require.process_package_type(node, new_node)
         graph.add_node(new_node)
