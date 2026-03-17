@@ -74,3 +74,4 @@ class Pkg(ConanFile):
         self.assertIn('conanfile.py: Buffer got msgs: Hello Stderr', client.out)
         self.assertNotIn('Hello Stdout', client.out.split('conanfile.py: Buffer got msgs:')[1])
         self.assertIn('Hello Stdout', client.out)
+

@@ -113,27 +113,32 @@ class TestGitIsDirty:
                     self.output.info("DIRTY: {}".format(git.is_dirty()))
             """)
         
+        # Create a repo with a subfolder
         c.save({
             "root_file.txt": "root file",
             "pkg/conanfile.py": conanfile,
             "pkg/pkg_file.txt": "pkg file"
         })
+        c.init_git_repo()
         
-        def mock_check_output(cmd):
-            if cmd == "git status . -s":
-                return "M pkg/conanfile.py\n" if getattr(mock_check_output, "return_dirty", False) else ""
-            return check_output_runner(cmd)
-
-        with patch("conan.tools.scm.git.check_output_runner", side_effect=mock_check_output) as mock_run:
-            mock_check_output.return_dirty = False
+        # Modify a file outside the package folder
+        c.save({"root_file.txt": "root file modified"})
+        
+        with patch("conan.tools.scm.git.check_output_runner", wraps=check_output_runner) as mock_run:
+            # is_dirty() should be False because the modification is outside the pkg folder
             c.run("export pkg")
             assert "pkg/0.1: DIRTY: False" in c.out
             mock_run.assert_any_call("git status . -s")
 
-            mock_check_output.return_dirty = True
+        # Modify a file inside the package folder
+        c.save({"pkg/pkg_file.txt": "pkg file modified"})
+        
+        with patch("conan.tools.scm.git.check_output_runner", wraps=check_output_runner) as mock_run:
+            # is_dirty() should be True because the modification is inside the pkg folder
             c.run("export pkg")
             assert "pkg/0.1: DIRTY: True" in c.out
             mock_run.assert_any_call("git status . -s")
+
 
 
 @pytest.mark.tool("git")
