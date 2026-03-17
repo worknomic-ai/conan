@@ -11,6 +11,7 @@ from conans.model.recipe_ref import ref_matches
 
 BUILT_IN_CONFS = {
     "core:required_conan_version": "Raise if current version does not match the defined range.",
+    "core:warnings_as_errors": "List of warnings that should trigger an error",
     "core:non_interactive": "Disable interactive user input, raises error if input necessary",
     "core:skip_warnings": "Do not show warnings in this list",
     "core:default_profile": "Defines the default host profile ('default' by default)",
@@ -493,7 +494,10 @@ class Conf:
 
     @staticmethod
     def _check_conf_name(conf):
-        if USER_CONF_PATTERN.match(conf) is None and conf not in BUILT_IN_CONFS:
+        if USER_CONF_PATTERN.match(conf):
+            if conf.count(":") == 0:
+                raise ConanException(f"[conf] User confs must have at least 1 ':' separator, like 'user.pkg:conf'")
+        elif conf not in BUILT_IN_CONFS:
             raise ConanException(f"[conf] '{conf}' does not exist in configuration list. "
                                  f" Run 'conan config list' to see all the available confs.")
 
