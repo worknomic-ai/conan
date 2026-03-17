@@ -238,17 +238,17 @@ def test_graph_info_html_bfs_filtering():
 
     # Create a graph with an unreachable node
     class MockConanfile:
-            def __init__(self, name):
-                self.display_name = name
-                self.url = None
-                self.homepage = None
-                self.license = None
-                self.author = None
-                self.topics = None
-                self.requires = {}
+        def __init__(self, name):
+            self.display_name = name
+            self.url = None
+            self.homepage = None
+            self.license = None
+            self.author = None
+            self.topics = None
+            self.requires = {}
             
-            def serialize(self):
-                return {}
+        def serialize(self):
+            return {}
 
     root = Node(RecipeReference.loads("root/1.0"), conanfile=MockConanfile("root/1.0"), context="host")
     reachable_node = Node(RecipeReference.loads("reachable/1.0"), conanfile=MockConanfile("reachable/1.0"), context="host")
