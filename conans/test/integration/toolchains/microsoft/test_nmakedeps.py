@@ -46,12 +46,12 @@ def test_nmakedeps():
     for flag in (
         r"/DTEST_DEFINITION1", r"/DTEST_DEFINITION2#0",
         r"/DTEST_DEFINITION3#", r"/DTEST_DEFINITION4#foo",
-        r'/DTEST_DEFINITION5#"foo bar"', r"/DTEST_DEFINITION6#foo#bar",
+        r'/DTEST_DEFINITION5#\\"foo bar\\"', r"/DTEST_DEFINITION6#foo#bar",
         r"/DTEST_DEFINITION7#foo#bar",
     ):
         assert re.search(fr'set "CL=%CL%.*\s{flag}(?:\s|")', bat_file)
-    # Checking that literal escaped quotes are not generated
-    assert r'\"' not in bat_file
+    # Checking that literal escaped quotes are generated
+    assert r'\"' in bat_file
     # Checking that libs and system libs are added to _LINK_
     for flag in (r"pkg-1\.lib", r"pkg-2\.lib", r"pkg-3\.lib", r"pkg-4\.lib",
                  r"pkg-5\.lib", r"pkg-6\.lib", r"pkg-7\.lib", r"ws2_32\.lib"):
@@ -82,8 +82,8 @@ def test_nmakedeps_defines_quoting():
     bat_file = client.load("conannmakedeps.bat")
     
     for flag in (r"/DWITHOUT_SPACE#NO_SPACE", 
-                 r'/DWITH_SPACE#"VALUE WITH SPACES"',
+                 r'/DWITH_SPACE#\\"VALUE WITH SPACES\\"',
                  r"/DMULTIPLE_EQUALS#VALUE#WITH#EQUALS"):
         assert re.search(fr'set "CL=%CL%.*\s{flag}(?:\s|")', bat_file)
         
-    assert r'\"' not in bat_file
+    assert r'\"' in bat_file

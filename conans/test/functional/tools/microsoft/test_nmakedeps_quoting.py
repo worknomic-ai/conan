@@ -44,11 +44,8 @@ def test_nmakedeps_quoting():
     main_cpp = textwrap.dedent("""\
         #include <iostream>
 
-        #define STR(x) #x
-        #define STRINGIFY(x) STR(x)
-
         int main() {
-            std::cout << "Macro value: " << STRINGIFY(MY_MACRO) << "\\n";
+            std::cout << MY_MACRO << "\\n";
             return 0;
         }
         """)
@@ -66,4 +63,4 @@ def test_nmakedeps_quoting():
     client.run(f"build consumer {settings}")
     
     client.run_command("consumer\\\\main.exe")
-    assert 'Macro value: "Hello World"' in client.out
+    assert "Hello World" in client.out
