@@ -54,7 +54,8 @@ class MockInfoProperty:
 
 class _Component:
 
-    def __init__(self, set_defaults=False):
+    def __init__(self, set_defaults=False, parent=None):
+        self._parent = parent
         # ###### PROPERTIES
         self._properties = None
 
@@ -86,7 +87,7 @@ class _Component:
         self.filenames = MockInfoProperty("cpp_info.filenames")
         self.build_modules = MockInfoProperty("cpp_info.build_modules")
 
-        if set_defaults:
+        if set_defaults and self._parent is None:
             self.includedirs = ["include"]
             self.libdirs = ["lib"]
             self.bindirs = ["bin"]
@@ -124,7 +125,10 @@ class _Component:
     @property
     def includedirs(self):
         if self._includedirs is None:
-            self._includedirs = []
+            if getattr(self, "_parent", None) is not None:
+                self._includedirs = self._parent.includedirs.copy() if isinstance(self._parent.includedirs, list) else getattr(self._parent, "includedirs")
+            else:
+                self._includedirs = []
         return self._includedirs
 
     @includedirs.setter
@@ -134,7 +138,10 @@ class _Component:
     @property
     def srcdirs(self):
         if self._srcdirs is None:
-            self._srcdirs = []
+            if getattr(self, "_parent", None) is not None:
+                self._srcdirs = self._parent.srcdirs.copy() if isinstance(self._parent.srcdirs, list) else getattr(self._parent, "srcdirs")
+            else:
+                self._srcdirs = []
         return self._srcdirs
 
     @srcdirs.setter
@@ -144,7 +151,10 @@ class _Component:
     @property
     def libdirs(self):
         if self._libdirs is None:
-            self._libdirs = []
+            if getattr(self, "_parent", None) is not None:
+                self._libdirs = self._parent.libdirs.copy() if isinstance(self._parent.libdirs, list) else getattr(self._parent, "libdirs")
+            else:
+                self._libdirs = []
         return self._libdirs
 
     @libdirs.setter
@@ -154,7 +164,10 @@ class _Component:
     @property
     def resdirs(self):
         if self._resdirs is None:
-            self._resdirs = []
+            if getattr(self, "_parent", None) is not None:
+                self._resdirs = self._parent.resdirs.copy() if isinstance(self._parent.resdirs, list) else getattr(self._parent, "resdirs")
+            else:
+                self._resdirs = []
         return self._resdirs
 
     @resdirs.setter
@@ -164,7 +177,10 @@ class _Component:
     @property
     def bindirs(self):
         if self._bindirs is None:
-            self._bindirs = []
+            if getattr(self, "_parent", None) is not None:
+                self._bindirs = self._parent.bindirs.copy() if isinstance(self._parent.bindirs, list) else getattr(self._parent, "bindirs")
+            else:
+                self._bindirs = []
         return self._bindirs
 
     @bindirs.setter
@@ -174,7 +190,10 @@ class _Component:
     @property
     def builddirs(self):
         if self._builddirs is None:
-            self._builddirs = []
+            if getattr(self, "_parent", None) is not None:
+                self._builddirs = self._parent.builddirs.copy() if isinstance(self._parent.builddirs, list) else getattr(self._parent, "builddirs")
+            else:
+                self._builddirs = []
         return self._builddirs
 
     @builddirs.setter
@@ -184,7 +203,10 @@ class _Component:
     @property
     def frameworkdirs(self):
         if self._frameworkdirs is None:
-            self._frameworkdirs = []
+            if getattr(self, "_parent", None) is not None:
+                self._frameworkdirs = self._parent.frameworkdirs.copy() if isinstance(self._parent.frameworkdirs, list) else getattr(self._parent, "frameworkdirs")
+            else:
+                self._frameworkdirs = []
         return self._frameworkdirs
 
     @frameworkdirs.setter
@@ -215,7 +237,10 @@ class _Component:
     @property
     def system_libs(self):
         if self._system_libs is None:
-            self._system_libs = []
+            if getattr(self, "_parent", None) is not None:
+                self._system_libs = self._parent.system_libs.copy() if isinstance(self._parent.system_libs, list) else getattr(self._parent, "system_libs")
+            else:
+                self._system_libs = []
         return self._system_libs
 
     @system_libs.setter
@@ -225,7 +250,10 @@ class _Component:
     @property
     def frameworks(self):
         if self._frameworks is None:
-            self._frameworks = []
+            if getattr(self, "_parent", None) is not None:
+                self._frameworks = self._parent.frameworks.copy() if isinstance(self._parent.frameworks, list) else getattr(self._parent, "frameworks")
+            else:
+                self._frameworks = []
         return self._frameworks
 
     @frameworks.setter
@@ -235,7 +263,10 @@ class _Component:
     @property
     def libs(self):
         if self._libs is None:
-            self._libs = []
+            if getattr(self, "_parent", None) is not None:
+                self._libs = self._parent.libs.copy() if isinstance(self._parent.libs, list) else getattr(self._parent, "libs")
+            else:
+                self._libs = []
         return self._libs
 
     @libs.setter
@@ -245,7 +276,10 @@ class _Component:
     @property
     def defines(self):
         if self._defines is None:
-            self._defines = []
+            if getattr(self, "_parent", None) is not None:
+                self._defines = self._parent.defines.copy() if isinstance(self._parent.defines, list) else getattr(self._parent, "defines")
+            else:
+                self._defines = []
         return self._defines
 
     @defines.setter
@@ -255,7 +289,10 @@ class _Component:
     @property
     def cflags(self):
         if self._cflags is None:
-            self._cflags = []
+            if getattr(self, "_parent", None) is not None:
+                self._cflags = self._parent.cflags.copy() if isinstance(self._parent.cflags, list) else getattr(self._parent, "cflags")
+            else:
+                self._cflags = []
         return self._cflags
 
     @cflags.setter
@@ -265,7 +302,10 @@ class _Component:
     @property
     def cxxflags(self):
         if self._cxxflags is None:
-            self._cxxflags = []
+            if getattr(self, "_parent", None) is not None:
+                self._cxxflags = self._parent.cxxflags.copy() if isinstance(self._parent.cxxflags, list) else getattr(self._parent, "cxxflags")
+            else:
+                self._cxxflags = []
         return self._cxxflags
 
     @cxxflags.setter
@@ -275,7 +315,10 @@ class _Component:
     @property
     def sharedlinkflags(self):
         if self._sharedlinkflags is None:
-            self._sharedlinkflags = []
+            if getattr(self, "_parent", None) is not None:
+                self._sharedlinkflags = self._parent.sharedlinkflags.copy() if isinstance(self._parent.sharedlinkflags, list) else getattr(self._parent, "sharedlinkflags")
+            else:
+                self._sharedlinkflags = []
         return self._sharedlinkflags
 
     @sharedlinkflags.setter
@@ -285,7 +328,10 @@ class _Component:
     @property
     def exelinkflags(self):
         if self._exelinkflags is None:
-            self._exelinkflags = []
+            if getattr(self, "_parent", None) is not None:
+                self._exelinkflags = self._parent.exelinkflags.copy() if isinstance(self._parent.exelinkflags, list) else getattr(self._parent, "exelinkflags")
+            else:
+                self._exelinkflags = []
         return self._exelinkflags
 
     @exelinkflags.setter
@@ -295,7 +341,10 @@ class _Component:
     @property
     def objects(self):
         if self._objects is None:
-            self._objects = []
+            if getattr(self, "_parent", None) is not None:
+                self._objects = self._parent.objects.copy() if isinstance(self._parent.objects, list) else getattr(self._parent, "objects")
+            else:
+                self._objects = []
         return self._objects
 
     @objects.setter
@@ -305,7 +354,10 @@ class _Component:
     @property
     def sysroot(self):
         if self._sysroot is None:
-            self._sysroot = ""
+            if getattr(self, "_parent", None) is not None:
+                self._sysroot = getattr(self._parent, "sysroot")
+            else:
+                self._sysroot = ""
         return self._sysroot
 
     @sysroot.setter
@@ -315,7 +367,10 @@ class _Component:
     @property
     def requires(self):
         if self._requires is None:
-            self._requires = []
+            if getattr(self, "_parent", None) is not None:
+                self._requires = self._parent.requires.copy() if isinstance(self._parent.requires, list) else getattr(self._parent, "requires")
+            else:
+                self._requires = []
         return self._requires
 
     @requires.setter
@@ -410,8 +465,8 @@ class _Component:
 class CppInfo:
 
     def __init__(self, set_defaults=False):
-        self.components = defaultdict(lambda: _Component(set_defaults))
-        self._package = _Component(set_defaults)
+        self._package = _Component(set_defaults, parent=None)
+        self.components = defaultdict(lambda: _Component(set_defaults, parent=self._package))
 
     def __getattr__(self, attr):
         # all cpp_info.xxx of not defined things will go to the global package
@@ -460,7 +515,7 @@ class CppInfo:
         # COMPONENTS
         for cname, c in other.components.items():
             # Make sure each component created on the fly does not bring new defaults
-            self.components.setdefault(cname, _Component(set_defaults=False)).merge(c, overwrite)
+            self.components.setdefault(cname, _Component(set_defaults=False, parent=self._package)).merge(c, overwrite)
 
     def set_relative_base_folder(self, folder):
         """Prepend the folder to all the directories definitions, that are relative"""

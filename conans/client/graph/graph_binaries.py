@@ -377,6 +377,8 @@ class GraphBinariesAnalyzer(object):
             if node.binary in (BINARY_BUILD, BINARY_EDITABLE_BUILD, BINARY_EDITABLE):
                 if not node.build_allowed:  # Only those that are forced to build, not only "missing"
                     required_nodes.add(node)
+            elif node.conanfile.conf.get("tools.build:download_source", check_type=bool):
+                required_nodes.add(node)
 
         root_nodes = required_nodes.copy()
         while root_nodes:

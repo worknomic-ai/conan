@@ -1,0 +1,5 @@
+{
+  "transition": "submit",
+  "summary": "Implemented integration tests for custom deploy() method and deployers path integrity.",
+  "content": "Added a new test file `conans/test/integration/conanfile/test_deploy.py` that verifies:\n\n1.  **Custom `deploy()` Method Execution**: Validates that recipes can define a `deploy()` method that is automatically invoked during the deployment phase, successfully copying files to a relative path.\n2.  **Absolute Path Edge Cases (Recipe Level)**: Asserts that deploying to an absolute path within a custom `deploy()` method works seamlessly and preserves the absolute path intact.\n3.  **Absolute Path Edge Cases (Deployer Level)**: Uses the `full_deploy` built-in deployer to confirm that passing an absolute `--deployer-folder` correctly preserves the path and does not mistakenly resolve it relative to `output-folder`.\n4.  **Baseline Relative Path (Deployer Level)**: Confirms that passing a relative `--output-folder` correctly resolves relative deployer target paths with the `full_deploy` deployer.\n\nAll specific requirements outlined in the prompt have been correctly satisfied and tests pass successfully."
+}
