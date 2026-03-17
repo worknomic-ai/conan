@@ -30,16 +30,31 @@ class Profile(object):
         return self.dumps()
 
     def serialize(self):
-        # TODO: Remove it seems dead
-        return {
-            "settings": self.settings,
-            "package_settings": self.package_settings,
-            "options": self.options.serialize(),
-            "tool_requires": self.tool_requires,
-            "conf": self.conf.serialize(),
-            # FIXME: Perform a serialize method for ProfileEnvironment
-            "build_env": self.buildenv.dumps()
-        }
+        def _to_serializable(v):
+            if hasattr(v, "serialize") and callable(v.serialize):
+                v = v.serialize()
+            elif hasattr(v, "dumps") and callable(v.dumps):
+                v = v.dumps()
+
+            if isinstance(v, dict):
+                return {k: _to_serializable(val) for k, val in v.items()}
+            if isinstance(v, (list, tuple, set)):
+                return [_to_serializable(val) for val in v]
+            if isinstance(v, (str, int, float, bool, type(None))):
+                return v
+            return repr(v)
+
+        result = {}
+        for k, v in self.__dict__.items():
+            if k.startswith("_"):
+                continue
+            if callable(v):
+                continue
+            if k == "buildenv":
+                result["build_env"] = _to_serializable(v)
+            else:
+                result[k] = _to_serializable(v)
+        return result
 
     @property
     def package_settings_values(self):
