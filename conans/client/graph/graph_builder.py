@@ -1,6 +1,6 @@
 import copy
 import os
-from collections import deque
+from collections import deque, OrderedDict
 
 from conans.client.conanfile.configure import run_configure_method
 from conans.client.graph.graph import DepsGraph, Node, CONTEXT_HOST, \
@@ -48,6 +48,23 @@ class DepsGraphBuilder(object):
                 (require, node) = open_requires.popleft()
                 if require.override:
                     continue
+
+                profile = profile_host if node.context == CONTEXT_HOST else profile_build
+                replacements = profile.replace_tool_requires if require.build else profile.replace_requires
+                if replacements:
+                    for pattern, replace_require_list in replacements.items():
+                        if ref_matches(require.ref, pattern, is_consumer=node.conanfile._conan_is_consumer):
+                            # extract lists to avoid dictionary size mutation errors
+                            req_items = list(node.conanfile.requires._requires.items())
+                            dep_items = list(node.transitive_deps.items())
+                            
+                            # apply substitution
+                            require.ref = copy.copy(replace_require_list[0])
+                            
+                            # safe rebuild
+                            node.conanfile.requires._requires = OrderedDict(req_items)
+                            node.transitive_deps = OrderedDict(dep_items)
+                            break
                 new_node = self._expand_require(require, node, dep_graph, profile_host,
                                                 profile_build, graph_lock)
                 if new_node:
