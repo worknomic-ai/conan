@@ -52,6 +52,7 @@ class NMakeDeps(object):
                     define = define.replace("=", "#")
                     macro, value = define.split("#", 1)
                     if " " in value:
+                        value = value.replace('"', r'\"')
                         value = f'"{value}"'
                     define = f"{macro}#{value}"
                 return f"/D{define}"
