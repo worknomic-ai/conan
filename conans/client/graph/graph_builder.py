@@ -1,6 +1,6 @@
 import copy
 import os
-from collections import deque
+from collections import deque, OrderedDict
 
 from conans.client.conanfile.configure import run_configure_method
 from conans.client.graph.graph import DepsGraph, Node, CONTEXT_HOST, \
@@ -48,6 +48,23 @@ class DepsGraphBuilder(object):
                 (require, node) = open_requires.popleft()
                 if require.override:
                     continue
+
+                profile = profile_host if node.context == CONTEXT_HOST else profile_build
+                replacements = profile.replace_tool_requires if require.build else profile.replace_requires
+                if replacements:
+                    for pattern, replace_require_list in replacements.items():
+                        if ref_matches(require.ref, pattern, is_consumer=node.conanfile._conan_is_consumer):
+                            # extract lists to avoid dictionary size mutation errors
+                            req_values = list(node.conanfile.requires._requires.values())
+                            dep_values = list(node.transitive_deps.values())
+                            
+                            # apply substitution
+                            require.ref = copy.copy(replace_require_list[0])
+                            
+                            # safe rebuild
+                            node.conanfile.requires._requires = OrderedDict((r, r) for r in req_values)
+                            node.transitive_deps = OrderedDict((r.require, r) for r in dep_values)
+                            break
                 new_node = self._expand_require(require, node, dep_graph, profile_host,
                                                 profile_build, graph_lock)
                 if new_node:
@@ -215,36 +232,69 @@ class DepsGraphBuilder(object):
         return new_ref, dep_conanfile, recipe_status, remote
 
     @staticmethod
+    def _create_system_tool_conanfile(ref):
+        conanfile = ConanFile(str(ref))
+        conanfile.cpp_info.includedirs = []
+        conanfile.cpp_info.libdirs = []
+        conanfile.cpp_info.bindirs = []
+        conanfile.cpp_info.frameworkdirs = []
+        conanfile.cpp_info.set_property("cmake_find_mode", "none")
+        conanfile.cpp_info.set_property("pkg_config_custom_content", "")
+        # Prevents generators like PkgConfigDeps and CMakeDeps from crashing
+        # when they try to access package_folder or recipe_folder
+        conanfile.folders.set_base_package("")
+        conanfile.folders.set_base_source("")
+        conanfile.recipe_folder = ""
+        return conanfile
+
+    @staticmethod
     def _resolved_system_tool(node, require, profile_build, profile_host, resolve_prereleases):
-        if node.context == CONTEXT_HOST and not require.build:  # Only for DIRECT tool_requires
-            return
-        system_tool = profile_build.system_tools if node.context == CONTEXT_BUILD \
-            else profile_host.system_tools
-        if system_tool:
+        profile = profile_build if node.context == CONTEXT_BUILD else profile_host
+        
+        if require.build:
+            # tool_requires use platform_tool_requires + system_tools
+            platform_requires = profile.platform_tool_requires + profile.system_tools
+        else:
+            # regular requires use platform_requires
+            platform_requires = profile.platform_requires
+
+        if platform_requires:
             version_range = require.version_range
-            for d in system_tool:
+            for d in platform_requires:
                 if require.ref.name == d.name:
                     if version_range:
                         if version_range.contains(d.version, resolve_prereleases):
                             require.ref.version = d.version  # resolved range is replaced by exact
-                            return d, ConanFile(str(d)), RECIPE_SYSTEM_TOOL, None
+                            return d, DepsGraphBuilder._create_system_tool_conanfile(d), RECIPE_SYSTEM_TOOL, None
                     elif require.ref.version == d.version:
                         if d.revision is None or require.ref.revision is None or \
                                 d.revision == require.ref.revision:
                             require.ref.revision = d.revision
-                            return d, ConanFile(str(d)), RECIPE_SYSTEM_TOOL, None
+                            return d, DepsGraphBuilder._create_system_tool_conanfile(d), RECIPE_SYSTEM_TOOL, None
 
     def _create_new_node(self, node, require, graph, profile_host, profile_build, graph_lock):
-        if require.ref.version == "<host_version>":
+        version = str(require.ref.version)
+        if version == "<host_version>" or version.startswith("<host_version:"):
             if not require.build or require.visible:
                 raise ConanException(f"{node.ref} require '{require.ref}': 'host_version' can only "
                                      "be used for non-visible tool_requires")
-            req = Requirement(require.ref, headers=True, libs=True, visible=True)
+            if version.startswith("<host_version:"):
+                pkg_name = version.split(":", 1)[1].split(">")[0]
+                req = Requirement(RecipeReference(pkg_name), headers=True, libs=True, visible=True)
+                error_msg = f" for '{pkg_name}'"
+            else:
+                req = Requirement(require.ref, headers=True, libs=True, visible=True)
+                error_msg = ""
+            
             transitive = node.transitive_deps.get(req)
             if transitive is None:
                 raise ConanException(f"{node.ref} require '{require.ref}': didn't find a matching "
-                                     "host dependency")
-            require.ref.version = transitive.require.ref.version
+                                     f"host dependency{error_msg}")
+            
+            require.ref = RecipeReference(require.ref.name,
+                                          transitive.require.ref.version,
+                                          transitive.require.ref.user,
+                                          transitive.require.ref.channel)
 
         if graph_lock is not None:
             # Here is when the ranges and revisions are resolved
@@ -305,6 +355,9 @@ class DepsGraphBuilder(object):
             else:
                 down_options = Options(options_values=node.conanfile.default_build_options)
 
+        if new_node.recipe == RECIPE_SYSTEM_TOOL:
+            # Platform packages don't receive downstream options
+            down_options = Options()
         self._prepare_node(new_node, profile_host, profile_build, down_options)
         require.process_package_type(node, new_node)
         graph.add_node(new_node)

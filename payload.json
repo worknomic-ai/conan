@@ -1,0 +1,78 @@
+{
+  "transition": "planned",
+  "summary": "Planned the implementation of the `conan lock remove` command and dynamic tracking syntax for `<host_version:pkg_name>`.",
+  "content": "## Analysis & Plan\n\nThe deliverable is broken down into two main domains:\n\n1.  **Lockfile Require Removal:** The new `conan lock remove` command requires updates to both the CLI layer and the `Lockfile` internal data structures. Due to the reliance on `OrderedDict` for lockfile requirements, deleting items directly during iteration throws a runtime error. This necessitates a safe, two-pass deletion mechanism. We will add `remove` primitives to the `Lockfile` and `_LockRequires` models, followed by the CLI subcommand and `LockfileAPI` hooks.\n2.  **Dynamic Version Tracking:** The graph builder logic needs to parse the new `<host_version:pkg_name>` syntax. Instead of blindly updating the version field on an existing `RecipeReference` in-place, we must construct a new `RecipeReference` using the transitive dependency's specific state (version, user, channel) and permanently assign it to `require.ref`. This ensures that downstream lockfile serializers correctly persist the concrete resolved state rather than the literal `\"<host_version>\"` token.",
+  "findings": [
+    {
+      "severity": "blocking",
+      "description": "Modifying lockfile requirement dictionaries during iteration causes runtime failures; two-pass deletion is mandatory.",
+      "location": "conans/model/graph_lock.py"
+    },
+    {
+      "severity": "non-blocking",
+      "description": "To correctly capture concrete versions in lockfiles, the `Requirement.ref` must be completely reassigned rather than mutating the version string on the original reference object in-place.",
+      "location": "conans/client/graph/graph_builder.py"
+    }
+  ],
+  "children": [
+    {
+      "sequence": 1,
+      "title": "Implement safe two-pass requirement removal in `Lockfile` state",
+      "description": "Add logic to safely remove requirements from the internal lockfile state structures.",
+      "deliverables": [
+        "conans/model/graph_lock.py: `_LockRequires.remove()` and `Lockfile.remove()` methods."
+      ],
+      "acceptance_criteria": [
+        "`_LockRequires.remove(ref)` identifies matching references using a two-pass strategy (collect first, then delete).",
+        "Matches are determined by evaluating `k.name == ref.name` and optionally `k.version == ref.version` if the version is provided.",
+        "`Lockfile.remove()` correctly delegates to `_requires`, `_build_requires`, and `_python_requires`.",
+        "Dictionary mutation exceptions are entirely avoided during removal."
+      ]
+    },
+    {
+      "sequence": 2,
+      "title": "Implement `conan lock remove` subcommand (CLI & API)",
+      "description": "Expose the lockfile requirement removal functionality via the CLI.",
+      "depends_on": [1],
+      "deliverables": [
+        "conan/cli/commands/lock.py: `lock_remove` subcommand.",
+        "conan/api/subapi/lockfile.py: `remove_lockfile` method."
+      ],
+      "acceptance_criteria": [
+        "The CLI parses `--requires`, `--build-requires`, and `--python-requires` as `RecipeReference` objects.",
+        "The command leverages `conan_api.lockfile.remove_lockfile()` which safely calls `Lockfile.remove()`.",
+        "The updated lockfile is cleanly serialized to disk without the target requirements."
+      ]
+    },
+    {
+      "sequence": 3,
+      "title": "Implement `<host_version:pkg_name>` dynamic tracking & state propagation",
+      "description": "Parse the tracking syntax and permanently update the `Requirement.ref` state.",
+      "deliverables": [
+        "conans/client/graph/graph_builder.py: `_create_new_node` logic expansion."
+      ],
+      "acceptance_criteria": [
+        "Graph builder recognizes `str(require.ref.version).startswith(\"<host_version:\")`.",
+        "The `pkg_name` target is extracted and used to query `node.transitive_deps`.",
+        "`require.ref` is fully re-assigned to a new `RecipeReference` holding the concrete version, user, and channel from the target dependency.",
+        "Missing target dependencies throw explicit `ConanException` strings.",
+        "The concrete version state cleanly persists to generated lockfiles, completely removing the original `<host_version:pkg_name>` syntax token from tracked references."
+      ]
+    },
+    {
+      "sequence": 4,
+      "title": "Functional testing for lock remove and dynamic tracking",
+      "description": "Add robust integration tests verifying both the lock remove and dynamic tracking capabilities.",
+      "depends_on": [2, 3],
+      "deliverables": [
+        "conans/test/integration/build_requires/build_requires_test.py: Test for `<host_version:pkg_name>`.",
+        "conans/test/integration/lockfile/lockfile_test.py (or similar): Test for `conan lock remove`."
+      ],
+      "acceptance_criteria": [
+        "Tests assert that `conan lock remove` completely purges designated elements without errors.",
+        "Tests assert the `<host_version:pkg_name>` tracking syntax extracts the targeted transitive dependency correctly.",
+        "Lockfiles generated during these tests correctly display the final resolved versions."
+      ]
+    }
+  ]
+}

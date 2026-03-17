@@ -78,6 +78,16 @@ def run_source_method(conanfile, hook_manager):
         if hasattr(conanfile, "source"):
             conanfile.output.highlight("Calling source() in {}".format(conanfile.source_folder))
             with conanfile_exception_formatter(conanfile, "source"):
-                with conanfile_remove_attr(conanfile, ['settings', "options"], "source"):
-                    conanfile.source()
+                if getattr(conanfile, "_conan_node", None) is None:
+                    # 'conan source' command does not build a graph, cannot inject the environment
+                    with conanfile_remove_attr(conanfile, ['settings', "options"], "source"):
+                        conanfile.source()
+                else:
+                    from conan.tools.env.virtualbuildenv import VirtualBuildEnv
+                    from conan.tools.env.virtualrunenv import VirtualRunEnv
+                    env = VirtualBuildEnv(conanfile).environment()
+                    env.compose_env(VirtualRunEnv(conanfile).environment())
+                    with conanfile_remove_attr(conanfile, ['settings', "options"], "source"):
+                        with env.vars(conanfile).apply():
+                            conanfile.source()
         hook_manager.execute("post_source", conanfile=conanfile)

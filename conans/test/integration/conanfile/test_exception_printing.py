@@ -35,6 +35,9 @@ def test_all_methods(direct, method):
     assert "Oh! an error!" in client.out
     if not direct:
         assert "while calling '_aux_method', line 12" in client.out
+    
+    assert "cannot build its binary" not in client.out
+    assert "It is possible that this recipe is not Conan 2.0 ready" not in client.out
 
 
 def test_complete_traceback_debug():

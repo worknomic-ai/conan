@@ -51,6 +51,7 @@ class ConanOutput:
     # Singleton
     _conan_output_level = LEVEL_STATUS
     _silent_warn_tags = []
+    _warnings_as_errors = []
 
     def __init__(self, scope=""):
         self.stream = sys.stderr
@@ -62,6 +63,10 @@ class ConanOutput:
     @classmethod
     def define_silence_warnings(cls, warnings):
         cls._silent_warn_tags = warnings or []
+
+    @classmethod
+    def define_warnings_as_errors(cls, warnings):
+        cls._warnings_as_errors = warnings or []
 
     @classmethod
     def define_log_level(cls, v):
@@ -207,6 +212,9 @@ class ConanOutput:
         if self._conan_output_level <= LEVEL_WARNING:
             if warn_tag is not None and warn_tag in self._silent_warn_tags:
                 return self
+            if "all" in self._warnings_as_errors or \
+               (warn_tag is not None and warn_tag in self._warnings_as_errors):
+                raise ConanException(f"{warn_tag + ': ' if warn_tag else ''}{msg}")
             warn_tag_msg = "" if warn_tag is None else f"{warn_tag}: "
             self._write_message(f"WARN: {warn_tag_msg}{msg}", Color.YELLOW)
         return self

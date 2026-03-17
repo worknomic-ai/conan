@@ -66,6 +66,7 @@ class CMakeDeps(object):
                                      "generator.".format(common_name))
 
         # Iterate all the transitive requires
+        conandeps_lines = []
         for require, dep in list(host_req.items()) + list(build_req.items()) + list(test_req.items()):
             # Require is not used at the moment, but its information could be used,
             # and will be used in Conan 2.0
@@ -79,15 +80,34 @@ class CMakeDeps(object):
             # Skip from the requirement
             if cmake_find_mode == FIND_MODE_NONE:
                 # Skip the generation of config files for this node, it will be located externally
-                continue
+                pass
+            else:
+                if cmake_find_mode in (FIND_MODE_CONFIG, FIND_MODE_BOTH):
+                    self._generate_files(require, dep, ret, find_module_mode=False)
 
-            if cmake_find_mode in (FIND_MODE_CONFIG, FIND_MODE_BOTH):
-                self._generate_files(require, dep, ret, find_module_mode=False)
+                if cmake_find_mode in (FIND_MODE_MODULE, FIND_MODE_BOTH):
+                    self._generate_files(require, dep, ret, find_module_mode=True)
+            
+            if require.direct:
+                pkg_name = self.get_cmake_package_name(dep, module_mode=cmake_find_mode == FIND_MODE_MODULE)
+                suffix = ""
+                if require.build:
+                    suffix = self.build_context_suffix.get(dep.ref.name, "")
+                pkg_name += suffix
 
-            if cmake_find_mode in (FIND_MODE_MODULE, FIND_MODE_BOTH):
-                self._generate_files(require, dep, ret, find_module_mode=True)
+                if cmake_find_mode == FIND_MODE_MODULE:
+                    line = f"find_package({pkg_name} REQUIRED)"
+                elif cmake_find_mode == FIND_MODE_NONE:
+                    line = f"find_package({pkg_name} REQUIRED)"
+                else:
+                    line = f"find_package({pkg_name} REQUIRED CONFIG)"
+                
+                if line not in conandeps_lines:
+                    conandeps_lines.append(line)
 
+        ret["conandeps.cmake"] = "\n".join(conandeps_lines) + "\n"
         return ret
+
 
     def _generate_files(self, require, dep, ret, find_module_mode):
         if not find_module_mode:

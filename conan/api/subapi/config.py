@@ -8,7 +8,7 @@ from conan import conan_version
 from conan.internal.api import detect_api
 from conan.internal.cache.home_paths import HomePaths
 from conan.internal.conan_app import ConanApp
-from conans.model.conf import ConfDefinition
+from conans.model.conf import ConfDefinition, BUILT_IN_CONFS
 from conans.util.files import load, save
 
 
@@ -35,6 +35,16 @@ class ConfigAPI:
 
     def show(self, pattern):
         return self.global_conf.show(pattern)
+
+    @property
+    def settings_yml(self):
+        """Returns the string contents of the global settings.yml file from the cache folder.
+        If it doesn't exist, returns the default settings.yml string."""
+        from conans.client.conf import default_settings_yml
+        settings_path = HomePaths(self.conan_api.cache_folder).settings_path
+        if os.path.exists(settings_path):
+            return load(settings_path)
+        return default_settings_yml
 
     @property
     def global_conf(self):
@@ -68,3 +78,17 @@ class ConfigAPI:
                     """)
                 save(global_conf_path, default_global_conf)
         return self._new_config
+
+    @property
+    def settings_user(self):
+        cache_folder = self.conan_api.cache_folder
+        home_paths = HomePaths(cache_folder)
+        settings_user_path = home_paths.settings_path_user
+        if os.path.exists(settings_user_path):
+            return load(settings_user_path)
+        return ""
+
+    @property
+    def builtin_confs(self):
+        return BUILT_IN_CONFS
+

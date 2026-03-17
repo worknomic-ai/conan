@@ -179,3 +179,57 @@ def graph_info(conan_api, parser, subparser, *args):
             "field_filter": args.filter,
             "package_filter": args.package_filter,
             "conan_api": conan_api}
+
+from conan.cli.formatters.graph.explain import print_graph_explain
+
+@conan_subcommand(formatters={"text": print_graph_explain})
+def graph_explain(conan_api, parser, subparser, *args):
+    """
+    Explain a dependency graph error.
+    """
+    common_graph_args(subparser)
+    subparser.add_argument("--check-updates", default=False, action="store_true",
+                           help="Check if there are recipe updates")
+    subparser.add_argument("--build-require", action='store_true', default=False,
+                           help='Whether the provided reference is a build-require')
+    args = parser.parse_args(*args)
+
+    # parameter validation
+    validate_common_graph_args(args)
+
+    cwd = os.getcwd()
+    path = conan_api.local.get_conanfile_path(args.path, cwd, py=None) if args.path else None
+
+    # Basic collaborators, remotes, lockfile, profiles
+    remotes = conan_api.remotes.list(args.remote) if not args.no_remote else []
+    overrides = eval(args.lockfile_overrides) if args.lockfile_overrides else None
+    lockfile = conan_api.lockfile.get_lockfile(lockfile=args.lockfile,
+                                               conanfile_path=path,
+                                               cwd=cwd,
+                                               partial=args.lockfile_partial,
+                                               overrides=overrides)
+    profile_host, profile_build = conan_api.profiles.get_profiles_from_args(args)
+
+    if path:
+        deps_graph = conan_api.graph.load_graph_consumer(path, args.name, args.version,
+                                                         args.user, args.channel,
+                                                         profile_host, profile_build, lockfile,
+                                                         remotes, args.update,
+                                                         check_updates=args.check_updates,
+                                                         is_build_require=args.build_require)
+    else:
+        deps_graph = conan_api.graph.load_graph_requires(args.requires, args.tool_requires,
+                                                         profile_host, profile_build, lockfile,
+                                                         remotes, args.update,
+                                                         check_updates=args.check_updates)
+                                                         
+    from conans.client.graph.graph_error import GraphError
+
+    try:
+        deps_graph.report_graph_error()
+        conan_api.graph.analyze_binaries(deps_graph, args.build, remotes=remotes, update=args.update,
+                                         lockfile=lockfile)
+    except GraphError as e:
+        return {"graph": deps_graph, "error": e, "conan_api": conan_api}
+
+    return {"graph": deps_graph, "conan_api": conan_api}

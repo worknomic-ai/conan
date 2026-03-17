@@ -1,4 +1,5 @@
 import json
+from collections import deque
 import os
 
 from jinja2 import Template, select_autoescape
@@ -59,7 +60,17 @@ class _Grapher(object):
     def _build_graph(self):
         graph_nodes = self._deps_graph.by_levels()
         build_time_nodes = self._deps_graph.build_time_nodes()
-        graph_nodes = reversed([n for level in graph_nodes for n in level])
+
+        # We need a BFS to collect the reachable nodes
+        reachable = set()
+        queue = deque([self._deps_graph.root]) if self._deps_graph.root else deque()
+        while queue:
+            node = queue.popleft()
+            if node not in reachable:
+                reachable.add(node)
+                queue.extend(node.neighbors())
+
+        graph_nodes = reversed([n for level in graph_nodes for n in level if n in reachable])
 
         _node_map = {}
         for i, node in enumerate(graph_nodes):
@@ -67,13 +78,14 @@ class _Grapher(object):
             _node_map[node] = n
 
         edges = []
-        for node in self._deps_graph.nodes:
+        for node in reachable:
             for node_to in node.neighbors():
-                src = _node_map[node]
-                dst = _node_map[node_to]
-                edges.append((src, dst))
+                if node_to in reachable:
+                    src = _node_map[node]
+                    dst = _node_map[node_to]
+                    edges.append((src, dst))
 
-        return _node_map.values(), edges
+        return list(_node_map.values()), edges
 
     @staticmethod
     def binary_color(node):
