@@ -209,3 +209,73 @@ def test_graph_info_html_output():
     # There used to be a few bugs with weird graphs, check for regressions
     assert "jinja2.exceptions.UndefinedError" not in tc.out
     assert "from: ," not in tc.out
+
+
+def test_graph_info_text_stream_isolation():
+    tc = TestClient()
+    tc.save({"conanfile.py": GenConanfile("lib", "1.0")})
+    tc.run("create .")
+    
+    # We should capture stdout and stderr independently
+    tc.run("graph info --requires=lib/1.0 --format=text")
+    
+    # The text format outputs graph information
+    assert "lib/1.0" in tc.stdout
+    assert "ref: conanfile" in tc.stdout
+    
+    # Information should be on stderr, stdout should purely be the text output
+    assert "Basic graph information" in tc.stderr
+    assert "Basic graph information" not in tc.stdout
+
+def test_graph_info_html_bfs_filtering():
+    from conans.client.graph.graph import DepsGraph, Node
+    from conan.api.conan_api import ConanAPI
+    from conans.model.recipe_ref import RecipeReference
+    from conan.cli.formatters.graph.graph import format_graph_html
+    from unittest import mock
+    import sys
+    from io import StringIO
+
+    # Create a graph with an unreachable node
+    class MockConanfile:
+        def __init__(self, name):
+            self.display_name = name
+            self.url = None
+            self.homepage = None
+            self.license = None
+            self.author = None
+            self.topics = None
+            self.requires = {}
+            
+        def serialize(self):
+            return {}
+
+    root = Node(RecipeReference.loads("root/1.0"), conanfile=MockConanfile("root/1.0"), context="host")
+    reachable_node = Node(RecipeReference.loads("reachable/1.0"), conanfile=MockConanfile("reachable/1.0"), context="host")
+    unreachable_node = Node(RecipeReference.loads("unreachable/1.0"), conanfile=MockConanfile("unreachable/1.0"), context="host")
+    
+    graph = DepsGraph()
+    graph.add_node(root)
+    graph.add_node(reachable_node)
+    graph.add_node(unreachable_node)
+    
+    graph.add_edge(root, reachable_node, mock.Mock())
+    
+    result = {
+        "graph": graph,
+        "conan_api": ConanAPI(),
+        "package_filter": None
+    }
+    
+    captured = StringIO()
+    old_stdout = sys.stdout
+    sys.stdout = captured
+    try:
+        format_graph_html(result)
+    finally:
+        sys.stdout = old_stdout
+        
+    html = captured.getvalue()
+    assert "root/1.0" in html
+    assert "reachable/1.0" in html
+    assert "unreachable/1.0" not in html
