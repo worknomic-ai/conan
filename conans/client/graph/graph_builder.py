@@ -55,15 +55,15 @@ class DepsGraphBuilder(object):
                     for pattern, replace_require_list in replacements.items():
                         if ref_matches(require.ref, pattern, is_consumer=node.conanfile._conan_is_consumer):
                             # extract lists to avoid dictionary size mutation errors
-                            req_items = list(node.conanfile.requires._requires.items())
-                            dep_items = list(node.transitive_deps.items())
+                            req_values = list(node.conanfile.requires._requires.values())
+                            dep_values = list(node.transitive_deps.values())
                             
                             # apply substitution
                             require.ref = copy.copy(replace_require_list[0])
                             
                             # safe rebuild
-                            node.conanfile.requires._requires = OrderedDict(req_items)
-                            node.transitive_deps = OrderedDict(dep_items)
+                            node.conanfile.requires._requires = OrderedDict((r, r) for r in req_values)
+                            node.transitive_deps = OrderedDict((r.require, r) for r in dep_values)
                             break
                 new_node = self._expand_require(require, node, dep_graph, profile_host,
                                                 profile_build, graph_lock)

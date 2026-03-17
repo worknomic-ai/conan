@@ -89,3 +89,85 @@ def test_replace_requires_multiple_and_mutation_regression():
     assert "otherdep/1.0" in client.out
     assert "dep/1.0 - Cache" not in client.out
 
+def test_platform_requires_overrides_standard_node():
+    # Validates that [platform_requires] correctly overrides a standard node (even if it exists
+    # in the cache and has transitive dependencies), replacing it with a system tool node and
+    # cutting off its transitive dependencies.
+    client = TestClient()
+    client.save({
+        "pkg_c/conanfile.py": GenConanfile("pkg_c", "1.0"),
+        "pkg_b/conanfile.py": GenConanfile("pkg_b", "1.0").with_require("pkg_c/1.0"),
+        "pkg_a/conanfile.py": GenConanfile("pkg_a", "1.0").with_require("pkg_b/1.0"),
+        "profile": "[platform_requires]\npkg_b/1.0"
+    })
+    client.run("create pkg_c")
+    client.run("create pkg_b")
+    client.run("create pkg_a -pr profile")
+    
+    assert "pkg_b/1.0 - System tool" in client.out
+    assert "pkg_b/1.0 - Cache" not in client.out
+    assert "pkg_c" not in client.out
+
+
+def test_replace_requires_conflict_resolution():
+    client = TestClient()
+    client.save({
+        "mydep/conanfile.py": GenConanfile("mydep", "1.0"),
+        "dep/conanfile.py": GenConanfile("dep", "1.0"),
+        "dep2/conanfile.py": GenConanfile("dep", "2.0"),
+        "pkga/conanfile.py": GenConanfile("pkga", "1.0").with_require("dep/1.0"),
+        "pkgb/conanfile.py": GenConanfile("pkgb", "1.0").with_require("dep/2.0"),
+        "consumer/conanfile.py": """from conan import ConanFile
+class Consumer(ConanFile):
+    name = "consumer"
+    version = "1.0"
+    requires = "pkga/1.0", "pkgb/1.0"
+    def generate(self):
+        assert "mydep" in self.dependencies
+        assert self.dependencies["mydep"].ref.name == "mydep"
+        assert "dep" not in self.dependencies
+""",
+        "profile": "[replace_requires]\ndep/*: mydep/1.0"
+    })
+    client.run("create mydep")
+    client.run("create dep")
+    client.run("create dep2")
+    client.run("create pkga")
+    client.run("create pkgb")
+    
+    # Verify that without replace_requires it fails with conflict
+    client.run("create consumer --build=missing", assert_error=True)
+    assert "Conflict in pkga" in client.out or "conflict" in client.out.lower()
+    
+    # With replace_requires it succeeds
+    client.run("create consumer -pr profile --build=missing")
+    assert "mydep/1.0" in client.out
+    assert "dep/1.0 - Cache" not in client.out
+    assert "dep/2.0 - Cache" not in client.out
+
+def test_replace_requires_transitive_lookup():
+    # Test that a transitive dependency replaced by a profile override can be
+    # correctly looked up by its new name in the consumer's generate() or build() method.
+    client = TestClient()
+    conanfile_pkg = """from conan import ConanFile
+class Pkg(ConanFile):
+    name = "pkg"
+    version = "1.0"
+    requires = "dep/1.0"
+    def generate(self):
+        # We replaced 'transitive' with 'mydep', so we should be able to look it up
+        assert "mydep" in self.dependencies
+        assert self.dependencies["mydep"].ref.name == "mydep"
+        # The original name should not be present
+        assert "transitive" not in self.dependencies
+"""
+    client.save({
+        "mydep/conanfile.py": GenConanfile("mydep", "1.0"),
+        "dep/conanfile.py": GenConanfile("dep", "1.0").with_require("transitive/1.0"),
+        "pkg/conanfile.py": conanfile_pkg,
+        "profile": "[replace_requires]\ntransitive/*: mydep/1.0"
+    })
+    client.run("create mydep")
+    client.run("export dep")
+    client.run("create pkg -pr profile --build=missing")
+    assert "mydep/1.0" in client.out
