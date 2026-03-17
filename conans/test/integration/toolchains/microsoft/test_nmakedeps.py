@@ -33,6 +33,8 @@ def test_nmakedeps():
                 self.cpp_info.components["pkg-5"].defines = ["TEST_DEFINITION5=foo bar"]
                 self.cpp_info.components["pkg-6"].libs = ["pkg-6"]
                 self.cpp_info.components["pkg-6"].defines = ["TEST_DEFINITION6=foo#bar"]
+                self.cpp_info.components["pkg-7"].libs = ["pkg-7"]
+                self.cpp_info.components["pkg-7"].defines = ["TEST_DEFINITION7=foo=bar"]
     """)
     client.save({"conanfile.py": conanfile})
     client.run("create . -s arch=x86_64")
@@ -45,10 +47,12 @@ def test_nmakedeps():
         r"/DTEST_DEFINITION1", r"/DTEST_DEFINITION2#0",
         r"/DTEST_DEFINITION3#", r"/DTEST_DEFINITION4#foo",
         r'/DTEST_DEFINITION5#"foo bar"', r"/DTEST_DEFINITION6#foo#bar",
+        r"/DTEST_DEFINITION7#foo#bar",
     ):
         assert re.search(fr'set "CL=%CL%.*\s{flag}(?:\s|")', bat_file)
     # Checking that literal escaped quotes are not generated
     assert r'\"' not in bat_file
     # Checking that libs and system libs are added to _LINK_
-    for flag in (r"pkg-1\.lib", r"pkg-2\.lib", r"pkg-3\.lib", r"pkg-4\.lib", r"pkg-5\.lib", r"pkg-6\.lib", r"ws2_32\.lib"):
+    for flag in (r"pkg-1\.lib", r"pkg-2\.lib", r"pkg-3\.lib", r"pkg-4\.lib",
+                 r"pkg-5\.lib", r"pkg-6\.lib", r"pkg-7\.lib", r"ws2_32\.lib"):
         assert re.search(fr'set "_LINK_=%_LINK_%.*\s{flag}(?:\s|")', bat_file)
