@@ -1,6 +1,7 @@
 import os
 import platform
 import textwrap
+import pytest
 
 from conans.test.assets.genconanfile import GenConanfile
 from conans.test.utils.tools import TestClient
@@ -707,3 +708,132 @@ def test_cmakedeps_set_property_overrides():
     assert 'set(dep_NO_SONAME_MODE_RELEASE TRUE)' in dep
     other = c.load("app/other-release-data.cmake")
     assert 'set(other_other_mycomp1_NO_SONAME_MODE_RELEASE TRUE)' in other
+
+@pytest.mark.tool("cmake")
+def test_conandeps_feature():
+    client = TestClient()
+    
+    # dep1
+    client.save({
+        "conanfile.py": textwrap.dedent("""
+            import os
+            from conan import ConanFile
+            from conan.tools.cmake import CMake, CMakeToolchain
+
+            class Dep1(ConanFile):
+                name = "dep1"
+                version = "1.0"
+                exports_sources = "*"
+                settings = "os", "compiler", "build_type", "arch"
+                generators = "CMakeToolchain"
+
+                def build(self):
+                    cmake = CMake(self)
+                    cmake.configure()
+                    cmake.build()
+
+                def package(self):
+                    cmake = CMake(self)
+                    cmake.install()
+
+                def package_info(self):
+                    self.cpp_info.libs = ["dep1"]
+            """),
+        "CMakeLists.txt": textwrap.dedent("""
+            cmake_minimum_required(VERSION 3.15)
+            project(dep1)
+            add_library(dep1 dep1.cpp)
+            install(TARGETS dep1 DESTINATION lib)
+            install(FILES dep1.h DESTINATION include)
+            """),
+        "dep1.cpp": "void dep1() {}",
+        "dep1.h": "void dep1();"
+    })
+    client.run("create .")
+    
+    # dep2
+    client.save({
+        "conanfile.py": textwrap.dedent("""
+            import os
+            from conan import ConanFile
+            from conan.tools.cmake import CMake, CMakeDeps, CMakeToolchain
+
+            class Dep2(ConanFile):
+                name = "dep2"
+                version = "1.0"
+                exports_sources = "*"
+                settings = "os", "compiler", "build_type", "arch"
+                requires = "dep1/1.0"
+                generators = "CMakeDeps", "CMakeToolchain"
+
+                def build(self):
+                    cmake = CMake(self)
+                    cmake.configure()
+                    cmake.build()
+
+                def package(self):
+                    cmake = CMake(self)
+                    cmake.install()
+
+                def package_info(self):
+                    self.cpp_info.libs = ["dep2"]
+            """),
+        "CMakeLists.txt": textwrap.dedent("""
+            cmake_minimum_required(VERSION 3.15)
+            project(dep2)
+            find_package(dep1 REQUIRED CONFIG)
+            add_library(dep2 dep2.cpp)
+            target_link_libraries(dep2 PUBLIC dep1::dep1)
+            install(TARGETS dep2 DESTINATION lib)
+            install(FILES dep2.h DESTINATION include)
+            """),
+        "dep2.cpp": "#include \"dep1.h\"\nvoid dep2() { dep1(); }",
+        "dep2.h": "void dep2();"
+    }, clean_first=True)
+    client.run("create .")
+
+    # consumer
+    consumer = textwrap.dedent("""
+        import os
+        from conan import ConanFile
+        from conan.tools.cmake import CMake, CMakeDeps, CMakeToolchain
+
+        class Consumer(ConanFile):
+            name = "consumer"
+            version = "1.0"
+            exports_sources = "*"
+            settings = "os", "compiler", "build_type", "arch"
+            requires = "dep2/1.0"
+            generators = "CMakeToolchain", "CMakeDeps"
+
+            def build(self):
+                cmake = CMake(self)
+                cmake.configure()
+                cmake.build()
+        """)
+
+    cmakelists = textwrap.dedent("""
+        cmake_minimum_required(VERSION 3.15)
+        project(consumer CXX)
+
+        include(${CMAKE_BINARY_DIR}/conandeps.cmake)
+
+        add_executable(main main.cpp)
+        target_link_libraries(main dep2::dep2)
+        """)
+
+    main = textwrap.dedent("""
+        #include "dep2.h"
+        int main() {
+            dep2();
+            return 0;
+        }
+        """)
+
+    client.save({"conanfile.py": consumer, "CMakeLists.txt": cmakelists, "main.cpp": main}, clean_first=True)
+    
+    client.run("build .")
+    
+    conandeps = client.load("conandeps.cmake")
+    assert "find_package(dep2 REQUIRED CONFIG)" in conandeps
+    assert "dep1" not in conandeps  # dep1 is transitive
