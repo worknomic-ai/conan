@@ -55,6 +55,12 @@ def cache_path(conan_api: ConanAPI, parser, subparser, *args):
             path = conan_api.cache.package_metadata_path(pref)
         else:
             raise ConanException(f"'--folder {args.folder}' requires a recipe reference")
+
+    if args.folder is not None:
+        import os
+        if not os.path.exists(path):
+            raise ConanException(f"'{args.folder}' folder does not exist for the reference {args.reference}")
+
     return path
 
 
