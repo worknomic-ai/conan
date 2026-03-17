@@ -405,3 +405,42 @@ def test_deploy_output_locations():
     tc.run(f"install . --deployer=my_deploy -of='{tmp_folder}' --deployer-folder='{deployer_output}'")
     assert f"Deployer output: {deployer_output}" in tc.out
     assert f"Deployer output: {tmp_folder}" not in tc.out
+from conans.test.utils.tools import TestClient, GenConanfile
+
+def test_deploy_single_absolute_path():
+    c = TestClient()
+    c.save({"conanfile.py": GenConanfile("pkg", "1.0").with_package_file("include/hi.h", "hi")})
+    c.run("create .")
+
+    deployer = """
+import os
+from conan.internal.deploy import _deploy_single
+
+def deploy(graph, output_folder, **kwargs):
+    conanfile = graph.root.conanfile
+    for dep in conanfile.dependencies.values():
+        abs_path = os.path.abspath(os.path.join(output_folder, "my_absolute_deploy"))
+        _deploy_single(dep, conanfile, output_folder, dst=abs_path)
+    """
+    c.save({"conanfile.txt": "[requires]\npkg/1.0", "deploy.py": deployer}, clean_first=True)
+    c.run("install . --deployer=deploy.py --output-folder=output")
+    
+    assert os.path.exists(os.path.join(c.current_folder, "output", "my_absolute_deploy", "include", "hi.h"))
+
+def test_deploy_single_relative_path():
+    c = TestClient()
+    c.save({"conanfile.py": GenConanfile("pkg", "1.0").with_package_file("include/hi.h", "hi")})
+    c.run("create .")
+
+    deployer = """
+from conan.internal.deploy import _deploy_single
+
+def deploy(graph, output_folder, **kwargs):
+    conanfile = graph.root.conanfile
+    for dep in conanfile.dependencies.values():
+        _deploy_single(dep, conanfile, output_folder, dst="my_relative_deploy")
+    """
+    c.save({"conanfile.txt": "[requires]\npkg/1.0", "deploy.py": deployer}, clean_first=True)
+    c.run("install . --deployer=deploy.py --output-folder=output")
+    
+    assert os.path.exists(os.path.join(c.current_folder, "output", "my_relative_deploy", "include", "hi.h"))
