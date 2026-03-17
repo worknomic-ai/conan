@@ -151,3 +151,20 @@ def test_config_show():
     tc.run("config show zlib/*:foo")
     assert "zlib/*:user.mycategory:foo" in tc.out
     assert "zlib/*:user.myothercategory:foo" in tc.out
+
+def test_config_api_numeric_coerce_to_str():
+    # Test validates that numeric profile inputs (integer configuration) parses and coerces to a string
+    # seamlessly when check_type=str is requested via ConfigAPI.get()
+    client = TestClient()
+    # using a known conf, to test check_type=str coercion
+    client.save_home({"global.conf": "tools.microsoft:winsdk_version=10"})
+    api = ConanAPI(client.cache_folder)
+    
+    val = api.config.get("tools.microsoft:winsdk_version")
+    assert val == 10
+    assert isinstance(val, int)
+    
+    # And check that asking for check_type=str coerces it safely
+    val_str = api.config.get("tools.microsoft:winsdk_version", check_type=str)
+    assert val_str == "10"
+    assert isinstance(val_str, str)
