@@ -7,6 +7,9 @@ def test_config_settings_yml():
     client = TestClient()
     api = ConanAPI(cache_folder=client.cache_folder)
     
+    settings_path = os.path.join(client.cache_folder, "settings.yml")
+    os.remove(settings_path)
+    
     # 1. Default settings.yml when file doesn't exist
     assert api.config.settings_yml == default_settings_yml
     
