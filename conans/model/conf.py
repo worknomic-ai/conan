@@ -495,8 +495,8 @@ class Conf:
     @staticmethod
     def _check_conf_name(conf):
         if USER_CONF_PATTERN.match(conf):
-            if conf.count(":") == 0:
-                raise ConanException(f"[conf] User confs must have at least 1 ':' separator, like 'user.pkg:conf'")
+            if ":" not in conf:
+                raise ConanException(f"User conf '{conf}' must have a ':' separator (e.g., user.pkg:myconf)")
         elif conf not in BUILT_IN_CONFS:
             raise ConanException(f"[conf] '{conf}' does not exist in configuration list. "
                                  f" Run 'conan config list' to see all the available confs.")
@@ -614,6 +614,9 @@ class ConfDefinition:
         # strip whitespaces before/after =
         # values are not strip() unless they are a path, to preserve potential whitespaces
         name = name.strip()
+
+        if USER_CONF_PATTERN.match(name) and ":" not in name:
+            raise ConanException(f"User conf '{name}' must have a ':' separator (e.g., user.pkg:myconf)")
 
         # When loading from profile file, latest line has priority
         conf = Conf()
