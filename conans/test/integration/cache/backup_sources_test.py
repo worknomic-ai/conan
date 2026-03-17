@@ -660,14 +660,18 @@ class TestDownloadCacheBackupSources:
         assert "[Errno 2] No such file or directory" not in self.client.out
         assert sha256 in os.listdir(http_server_base_folder_backup)
 
-    def test_missing_download_cache_fails_gracefully(self):
+    @pytest.mark.parametrize("download_urls", [
+        "['origin']",
+        "['http://localhost:1234/backup']"
+    ])
+    def test_missing_download_cache_fails_gracefully(self, download_urls):
         """
         When core.sources:download_cache is missing/unset, but core.sources:download_urls is set,
         it should gracefully bypass the cache and attempt downloading instead of crashing
         with an AttributeError.
         """
         client = TestClient()
-        client.save({"global.conf": "core.sources:download_urls=['origin']\n"},
+        client.save({"global.conf": f"core.sources:download_urls={download_urls}\n"},
                     path=client.cache.cache_folder)
         conanfile = textwrap.dedent("""
             from conan import ConanFile
@@ -682,4 +686,8 @@ class TestDownloadCacheBackupSources:
         client.save({"conanfile.py": conanfile})
         client.run("create .", assert_error=True)
         assert "AttributeError" not in client.out
-        assert "ConanException: Error downloading file http://localhost:1234/somefile.txt" in client.out
+        if "origin" in download_urls:
+            assert "ConanException: Error downloading file http://localhost:1234/somefile.txt" in client.out
+        else:
+            assert "Error downloading file http://localhost:1234/backup/1234567890123456789012345678901234567890123456789012345678901234" in client.out
+
