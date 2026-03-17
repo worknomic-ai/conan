@@ -5,8 +5,8 @@ import textwrap
 import pytest
 
 from conans.test.utils.tools import TestClient
- 
- 
+
+
 @pytest.mark.skipif(platform.system() != "Windows", reason="Only for windows")
 def test_nmakedeps():
     client = TestClient()
@@ -50,6 +50,18 @@ def test_nmakedeps():
         r"/DTEST_DEFINITION7#foo#bar",
     ):
         assert re.search(fr'set "CL=%CL%.*\s{flag}(?:\s|")', bat_file)
+        
+    # Assertions explicitly verify that space-less values have no quotes
+    assert r'"/DTEST_DEFINITION1"' not in bat_file
+    assert r'"/DTEST_DEFINITION2#0"' not in bat_file
+    assert r'"/DTEST_DEFINITION3#"' not in bat_file
+    assert r'"/DTEST_DEFINITION4#foo"' not in bat_file
+    assert r'"/DTEST_DEFINITION6#foo#bar"' not in bat_file
+    assert r'"/DTEST_DEFINITION7#foo#bar"' not in bat_file
+
+    # Assertions explicitly verify that space-containing values have unescaped outer quotes
+    assert r'"/DTEST_DEFINITION5#foo bar"' in bat_file
+
     # Checking that libs and system libs are added to _LINK_
     for flag in (r"pkg-1\.lib", r"pkg-2\.lib", r"pkg-3\.lib", r"pkg-4\.lib",
                  r"pkg-5\.lib", r"pkg-6\.lib", r"pkg-7\.lib", r"ws2_32\.lib"):
@@ -70,7 +82,8 @@ def test_nmakedeps_defines_quoting():
                 self.cpp_info.defines = [
                     "WITHOUT_SPACE=NO_SPACE",
                     "WITH_SPACE=VALUE WITH SPACES",
-                    "MULTIPLE_EQUALS=VALUE=WITH=EQUALS"
+                    "MULTIPLE_EQUALS=VALUE=WITH=EQUALS",
+                    'WITH_INTERNAL_QUOTE=VALUE "WITH" QUOTES'
                 ]
     ''')
     client.save({"conanfile.py": conanfile})
@@ -81,5 +94,14 @@ def test_nmakedeps_defines_quoting():
     
     for flag in (r"/DWITHOUT_SPACE#NO_SPACE", 
                  r'"/DWITH_SPACE#VALUE WITH SPACES"',
-                 r"/DMULTIPLE_EQUALS#VALUE#WITH#EQUALS"):
+                 r"/DMULTIPLE_EQUALS#VALUE#WITH#EQUALS",
+                 r'"/DWITH_INTERNAL_QUOTE#VALUE \\"WITH\\" QUOTES"'):
         assert re.search(fr'set "CL=%CL%.*\s{flag}(?:\s|")', bat_file)
+
+    # Assertions explicitly verify that space-less values have no quotes
+    assert r'"/DWITHOUT_SPACE#NO_SPACE"' not in bat_file
+    assert r'"/DMULTIPLE_EQUALS#VALUE#WITH#EQUALS"' not in bat_file
+
+    # Assertions explicitly verify that space-containing values have unescaped outer quotes
+    assert r'"/DWITH_SPACE#VALUE WITH SPACES"' in bat_file
+    assert r'"/DWITH_INTERNAL_QUOTE#VALUE \"WITH\" QUOTES"' in bat_file
