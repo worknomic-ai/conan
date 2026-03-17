@@ -277,3 +277,18 @@ def test_conf_choices_default():
     c.loads(confs)
     assert c.get("user.category:option1", choices=[1, 2], default=7) == 1
     assert c.get("user.category:option2", choices=[1, 2], default=7) == 7
+
+def test_user_conf_syntax_validation():
+    # User confs must have at least one ':'
+    c = ConfDefinition()
+    with pytest.raises(ConanException) as exc_info:
+        c.update("user.myconf", "value")
+    assert "User conf 'user.myconf' must have a ':' separator" in str(exc_info.value)
+
+    # But this should pass
+    c.update("user:myconf", "value")
+    assert c.get("user:myconf") == "value"
+
+    c.update("user.pkg:myconf", "value")
+    assert c.get("user.pkg:myconf") == "value"
+
