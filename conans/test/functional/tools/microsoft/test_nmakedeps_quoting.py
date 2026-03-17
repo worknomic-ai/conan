@@ -59,7 +59,7 @@ def test_nmakedeps_quoting():
 
     client.run("create dep")
     
-    settings = "-s compiler=msvc -s compiler.version=190 -s compiler.cppstd=14 -s compiler.runtime=dynamic"
+    settings = "-s compiler=msvc -s compiler.version=191 -s compiler.cppstd=14 -s compiler.runtime=dynamic"
     client.run(f"build consumer {settings}")
     
     client.run_command("consumer\\\\main.exe")
