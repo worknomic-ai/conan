@@ -5,8 +5,8 @@ import textwrap
 import pytest
 
 from conans.test.utils.tools import TestClient
-
-
+ 
+ 
 @pytest.mark.skipif(platform.system() != "Windows", reason="Only for windows")
 def test_nmakedeps():
     client = TestClient()
@@ -29,6 +29,10 @@ def test_nmakedeps():
                 self.cpp_info.components["pkg-3"].requires = ["pkg-1", "pkg-2"]
                 self.cpp_info.components["pkg-4"].libs = ["pkg-4"]
                 self.cpp_info.components["pkg-4"].defines = ["TEST_DEFINITION4=foo"]
+                self.cpp_info.components["pkg-5"].libs = ["pkg-5"]
+                self.cpp_info.components["pkg-5"].defines = ["TEST_DEFINITION5=foo bar"]
+                self.cpp_info.components["pkg-6"].libs = ["pkg-6"]
+                self.cpp_info.components["pkg-6"].defines = ["TEST_DEFINITION6=foo#bar"]
     """)
     client.save({"conanfile.py": conanfile})
     client.run("create . -s arch=x86_64")
@@ -39,9 +43,12 @@ def test_nmakedeps():
     # Checking that defines are added to CL
     for flag in (
         r"/DTEST_DEFINITION1", r"/DTEST_DEFINITION2#0",
-        r"/DTEST_DEFINITION3#", r'/DTEST_DEFINITION4#\\"foo\\"',
+        r"/DTEST_DEFINITION3#", r"/DTEST_DEFINITION4#foo",
+        r'/DTEST_DEFINITION5#"foo bar"', r"/DTEST_DEFINITION6#foo#bar",
     ):
         assert re.search(fr'set "CL=%CL%.*\s{flag}(?:\s|")', bat_file)
+    # Checking that literal escaped quotes are not generated
+    assert r'\"' not in bat_file
     # Checking that libs and system libs are added to _LINK_
-    for flag in (r"pkg-1\.lib", r"pkg-2\.lib", r"pkg-3\.lib", r"pkg-4\.lib", r"ws2_32\.lib"):
+    for flag in (r"pkg-1\.lib", r"pkg-2\.lib", r"pkg-3\.lib", r"pkg-4\.lib", r"pkg-5\.lib", r"pkg-6\.lib", r"ws2_32\.lib"):
         assert re.search(fr'set "_LINK_=%_LINK_%.*\s{flag}(?:\s|")', bat_file)
