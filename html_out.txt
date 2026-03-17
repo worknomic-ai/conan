@@ -1,0 +1,36 @@
+HTML out:
+HTML out length: 8064
+
+======== Computing dependency graph ========
+Graph root
+    conanfile.py (pkg/1.0): /tmp/tmpu74hk7n1conans/path with spaces/conanfile.py
+Requirements
+    dep/1.0#fadd0f40c5fd31330429e337e0862191 - Cache
+    pkga/1.0#609b62f1aacf51d661cb8ad5c3c5d42a - Cache
+    pkgb/1.0#4732290ab9b81be40360618e41b7bfe0 - Cache
+Graph error
+    Version conflict: pkgb/1.0->dep/2.0, pkg/1.0->dep/1.0.
+ERROR: Version conflict: pkgb/1.0->dep/2.0, pkg/1.0->dep/1.0.
+
+<html lang="en">
+    <head>
+        <script type="text
+...
+            }
+                else {
+                    control.innerHTML = "<b>Package info</b>: No package selected";
+                }
+            });
+        </script>
+    </body>
+    <footer>
+        <div class="container-fluid">
+            <div class="info">
+                <p>
+                      Conan <b>v2.0.14</b> <script>document.write(new Date().getFullYear())</script> JFrog LTD. <a>https://conan.io</a>
+                </p>
+            </div>
+        </div>
+    </footer>
+</html>
+

@@ -1,0 +1,84 @@
+HTML out:
+HTML out length: 8394
+Conflict section: 
+                nodes.push({
+                    id: "conflict",
+                    label: "dep/2.0",
+                    shape: "circle",
+                    font: { color: "white" },
+                    color: "red",
+                    fulllabel: '<h3>dep/2.0</h3><p>This node creates a conflict in the dependency graph</p>',
+                    shapeProperties: { borderDashes: [5, 5] }
+                })
+
+                
+                    // Add edge from node that introduces the conflict to the new error node
+                    edges.push({from: 3,
+                                to: "conflict",
+                                color: "red",
+                                dashes: true,
+                                title: "Conflict",
+                                physics: false,
+                                color: "red",
+                                arrows: "to;from"})
+                
+
+                
+
+                
+                    // Add edge from previous node that already had conflicting dependency
+                    edges.push({from: 2,
+                                to: "conflict",
+                                color: "red",
+                                dashes: true,
+                                title: "Conflict",
+                                physics: false,
+                                color: "red",
+                                arrows: "to;from"})
+                
+
+            
+
+            var nodes = new vis.DataSet(nodes);
+            var edges = new vis.DataSet(edges);
+
+            var container = document.getElementById('mynetwork');
+            var controls = document.getElementById('controls');
+            var data = {
+                nodes: nodes,
+                edges: edges
+            };
+            var options = {
+                autoResize: true,
+                locale: 'en',
+                edges: {
+                    arrows: { to: {enabled: true} },
+                    smooth: { enabled: false}
+                },
+                nodes: {
+                    font: {'face': 'monospace', 'align': 'left'}
+                },
+                layout: {
+                    "hierarchical": {
+                        "enabled": true,
+                        "sortMethod": "directed",
+                        "direction": "UD",
+                        nodeSpacing: 200
+                    }
+                },
+                physics: {
+                    enabled: false,
+                },
+                configure: {
+                    enabled: true,
+                    filter: 'layout physics',
+                    showButton: false,
+                    container: controls
+                }
+            };
+            var network = new vis.Network(container, data, options);
+            network.on('click', function (properties) {
+                var ids = properties.nodes;
+                var clickedNodes = nodes.get(ids);
+                var control = document.getElementById("details");
+                if(clickedNodes[0

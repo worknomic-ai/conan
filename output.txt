@@ -1,0 +1,7 @@
+HTML out:
+
+======== Computing dependency graph ========
+ERROR: conanfile.py (pkg/1.0): Error in requirements() method, line 8
+	self.requires("dep/2.0")
+	ConanException: Duplicated requirement: dep/2.0
+
