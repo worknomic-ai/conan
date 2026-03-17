@@ -45,11 +45,10 @@ class BaseConanCommand:
 
     @staticmethod
     def _init_log_levels(parser):
-        parser.add_argument("-v", default="status", nargs='?',
+        parser.add_argument("-v", default=argparse.SUPPRESS, nargs='?',
                             help="Level of detail of the output. Valid options from less verbose "
                                  "to more verbose: -vquiet, -verror, -vwarning, -vnotice, -vstatus, "
                                  "-v or -vverbose, -vv or -vdebug, -vvv or -vtrace")
-
     @property
     def _help_formatters(self):
         """
@@ -101,9 +100,19 @@ class ConanArgumentParser(argparse.ArgumentParser):
 
     def parse_args(self, args=None, namespace=None):
         args = super().parse_args(args)
-        ConanOutput.define_log_level(args.v)
+        from conans.util.env import get_env
+        from conan.api.output import ConanOutput
+        from conan.errors import ConanException
+        if hasattr(args, "v"):
+            v = args.v
+            ConanOutput.define_log_level(v)
+        else:
+            v = get_env("CONAN_LOG_LEVEL", "status")
+            try:
+                ConanOutput.define_log_level(v)
+            except ConanException:
+                raise ConanException(f"Invalid log level '{v}' in CONAN_LOG_LEVEL environment variable.")
         return args
-
 
 class ConanCommand(BaseConanCommand):
     def __init__(self, method, group=None, formatters=None):
