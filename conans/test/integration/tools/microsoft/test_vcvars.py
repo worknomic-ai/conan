@@ -18,7 +18,7 @@ def test_vcvars_winsdk_version_string():
     """)
     client.save({"conanfile.py": conanfile})
     client.run('install . -s os=Windows -s compiler="msvc" -s compiler.version=191 '
-               '-s compiler.cppstd=14 -s compiler.runtime=static -c tools.microsoft:winsdk_version=10.0.19041.0')
+               '-s compiler.cppstd=14 -s compiler.runtime=static -s arch=x86_64 -c tools.microsoft:winsdk_version=10.0.19041.0')
 
     assert os.path.exists(os.path.join(client.current_folder, "conanvcvars.bat"))
     vcvars = client.load("conanvcvars.bat")
@@ -40,7 +40,7 @@ def test_vcvars_winsdk_version_integer():
         "profile": "[conf]\ntools.microsoft:winsdk_version=10\n"
     })
     client.run('install . -s os=Windows -s compiler="msvc" -s compiler.version=191 '
-               '-s compiler.cppstd=14 -s compiler.runtime=static -pr profile')
+               '-s compiler.cppstd=14 -s compiler.runtime=static -s arch=x86_64 -pr profile')
 
     assert os.path.exists(os.path.join(client.current_folder, "conanvcvars.bat"))
     vcvars = client.load("conanvcvars.bat")
