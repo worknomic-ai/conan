@@ -111,8 +111,11 @@ class CMake(object):
             arg_list.extend(cli_args)
 
         command = " ".join(arg_list)
+        kwargs = {}
+        if stdout is not None: kwargs["stdout"] = stdout
+        if stderr is not None: kwargs["stderr"] = stderr
         with chdir(self, build_folder):
-            self._conanfile.run(command, stdout=stdout, stderr=stderr)
+            self._conanfile.run(command, **kwargs)
 
     def _build(self, build_type=None, target=None, cli_args=None, build_tool_args=None, env="", stdout=None, stderr=None):
         bf = self._conanfile.build_folder
@@ -146,7 +149,10 @@ class CMake(object):
         arg_list = ['"{}"'.format(bf), build_config, cmd_args_to_string(args)]
         arg_list = " ".join(filter(None, arg_list))
         command = "%s --build %s" % (self._cmake_program, arg_list)
-        self._conanfile.run(command, env=env, stdout=stdout, stderr=stderr)
+        kwargs = {"env": env}
+        if stdout is not None: kwargs["stdout"] = stdout
+        if stderr is not None: kwargs["stderr"] = stderr
+        self._conanfile.run(command, **kwargs)
 
     def build(self, build_type=None, target=None, cli_args=None, build_tool_args=None, stdout=None, stderr=None):
         """
@@ -206,7 +212,10 @@ class CMake(object):
 
         arg_list = " ".join(filter(None, arg_list))
         command = "%s %s" % (self._cmake_program, arg_list)
-        self._conanfile.run(command, stdout=stdout, stderr=stderr)
+        kwargs = {}
+        if stdout is not None: kwargs["stdout"] = stdout
+        if stderr is not None: kwargs["stderr"] = stderr
+        self._conanfile.run(command, **kwargs)
 
     def test(self, build_type=None, target=None, cli_args=None, build_tool_args=None, env="", stdout=None, stderr=None):
         """
@@ -268,8 +277,11 @@ class CMake(object):
         arg_list = " ".join(filter(None, arg_list))
         command = "%s %s" % (ctest_program, arg_list)
         env = ["conanbuild", "conanrun"] if env == "" else env
+        kwargs = {"env": env}
+        if stdout is not None: kwargs["stdout"] = stdout
+        if stderr is not None: kwargs["stderr"] = stderr
         with chdir(self, self._conanfile.build_folder):
-            self._conanfile.run(command.strip(), env=env, stdout=stdout, stderr=stderr)
+            self._conanfile.run(command.strip(), **kwargs)
 
     @property
     def _compilation_verbosity_arg(self):
