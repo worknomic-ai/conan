@@ -59,6 +59,7 @@ def test_ctest_complex_path():
     assert "/opt/cmake/bin/ctest" in client.out
     assert "/opt/ctest" not in client.out
 
+
 def test_cmake_stream_capture():
     client = TestClient()
 
