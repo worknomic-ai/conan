@@ -48,12 +48,28 @@ class SourcesCachingDownloader:
         of backup_urls defined by user conf (by default ["origin"]), and iterate it until
         something is found.
         """
-        # We are going to use the download_urls definition for backups
-        download_cache_folder = download_cache_folder or HomePaths(self.conan_api.cache_folder).default_sources_backup_folder
         # regular local shared download cache, not using Conan backup sources servers
         backups_urls = backups_urls or ["origin"]
+        
+        if not download_cache_folder:
+            if None in backups_urls:
+                raise ConanException("Trying to download sources from None backup remote."
+                                     f" Remotes were: {backups_urls}")
+            for backup_url in backups_urls:
+                is_last = backup_url is backups_urls[-1]
+                if backup_url == "origin":  # recipe defined URLs
+                    if self._origin_download(urls, file_path, retry, retry_wait,
+                                             verify_ssl, auth, headers, md5, sha1, sha256,
+                                             is_last):
+                        break
+                else:
+                    if self._backup_download(backup_url, backups_urls, sha256, file_path,
+                                             urls, is_last, download_json=False):
+                        break
+            return
+
         if download_cache_folder and not os.path.isabs(download_cache_folder):
-            raise ConanException("core.download:download_cache must be an absolute path")
+            raise ConanException("core.sources:download_cache must be an absolute path")
 
         download_cache = DownloadCache(download_cache_folder)
         cached_path = download_cache.source_path(sha256)
@@ -104,15 +120,17 @@ class SourcesCachingDownloader:
                 self._output.info(f"Sources for {urls} found in origin")
             return True
 
-    def _backup_download(self, backup_url, backups_urls, sha256, cached_path, urls, is_last):
+    def _backup_download(self, backup_url, backups_urls, sha256, cached_path, urls, is_last, download_json=True):
         """ download from a Conan backup sources file server, like an Artifactory generic repo
         All failures are bad, except NotFound. The server must be live, working and auth, we
         don't want silently skipping a backup because it is down.
         """
         try:
+            os.makedirs(os.path.dirname(cached_path), exist_ok=True)
             backup_url = backup_url if backup_url.endswith("/") else backup_url + "/"
             self._file_downloader.download(backup_url + sha256, cached_path, sha256=sha256)
-            self._file_downloader.download(backup_url + sha256 + ".json", cached_path + ".json")
+            if download_json:
+                self._file_downloader.download(backup_url + sha256 + ".json", cached_path + ".json")
             self._output.info(f"Sources for {urls} found in remote backup {backup_url}")
             return True
         except NotFoundException:

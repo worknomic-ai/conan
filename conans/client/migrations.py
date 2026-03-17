@@ -53,13 +53,20 @@ class ClientMigrator(Migrator):
         migrate_profile_plugin(self.cache_folder)
 
         if old_version and old_version < "2.0.14-":
-            _migrate_pkg_db_lru(self.cache_folder, old_version)
+            from conan.api.subapi.config import ConfigAPI
+            
+            class _DummyAPI:
+                def __init__(self, cache_folder):
+                    self.cache_folder = cache_folder
+            global_conf = ConfigAPI(_DummyAPI(self.cache_folder)).global_conf
+            _migrate_pkg_db_lru(self.cache_folder, old_version, global_conf)
 
 
-def _migrate_pkg_db_lru(cache_folder, old_version):
+def _migrate_pkg_db_lru(cache_folder, old_version, global_conf):
     ConanOutput().warning(f"Upgrade cache from Conan version '{old_version}'")
     ConanOutput().warning("Running 2.0.14 Cache DB migration to add LRU column")
-    db_filename = os.path.join(cache_folder, 'p', 'cache.sqlite3')
+    store_folder = global_conf.get("core.cache:storage_path") or os.path.join(cache_folder, 'p')
+    db_filename = os.path.join(store_folder, 'cache.sqlite3')
     connection = sqlite3.connect(db_filename, isolation_level=None,
                                  timeout=1, check_same_thread=False)
     try:
@@ -76,7 +83,13 @@ def _migrate_pkg_db_lru(cache_folder, old_version):
             import os
             import sqlite3
             def migrate(cache_folder):
-                db = os.path.join(cache_folder, 'p', 'cache.sqlite3')
+                from conan.api.subapi.config import ConfigAPI
+                class _DummyAPI:
+                    def __init__(self, cache_folder):
+                        self.cache_folder = cache_folder
+                global_conf = ConfigAPI(_DummyAPI(cache_folder)).global_conf
+                store_folder = global_conf.get("core.cache:storage_path") or os.path.join(cache_folder, 'p')
+                db = os.path.join(store_folder, 'cache.sqlite3')
                 connection = sqlite3.connect(db, isolation_level=None, timeout=1,
                                              check_same_thread=False)
                 rec_cols = 'reference, rrev, path, timestamp'
