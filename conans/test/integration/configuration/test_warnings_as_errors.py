@@ -23,9 +23,11 @@ class Pkg(ConanFile):
     client.run("source .", assert_error=True)
     assert "my_warning: This is a warning!" in client.out or "ConanException" in client.out
 
-    # Disable it in global.conf and use CLI
-    client.save({"global.conf": ""}, path=client.cache.cache_folder)
-    client.run("source . -c \"core:warnings_as_errors=['my_warning']\"", assert_error=True)
+    # Untargeted warning proceeds normally
+    client.save({"global.conf": "core:warnings_as_errors=['other_warning']"}, path=client.cache.cache_folder)
+    client.run("source .")
+    assert "WARN: my_warning: This is a warning!" in client.out
+
 
 def test_warnings_as_errors_all():
     client = TestClient()
