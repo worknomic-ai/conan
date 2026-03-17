@@ -56,3 +56,34 @@ def test_nmakedeps():
     for flag in (r"pkg-1\.lib", r"pkg-2\.lib", r"pkg-3\.lib", r"pkg-4\.lib",
                  r"pkg-5\.lib", r"pkg-6\.lib", r"pkg-7\.lib", r"ws2_32\.lib"):
         assert re.search(fr'set "_LINK_=%_LINK_%.*\s{flag}(?:\s|")', bat_file)
+
+
+@pytest.mark.skipif(platform.system() != "Windows", reason="Only for windows")
+def test_nmakedeps_defines_quoting():
+    client = TestClient()
+    conanfile = textwrap.dedent('''
+        from conan import ConanFile
+        class Pkg(ConanFile):
+            name = "test-nmakedeps-quoting"
+            version = "1.0"
+            settings = "os", "arch", "compiler", "build_type"
+
+            def package_info(self):
+                self.cpp_info.defines = [
+                    "WITHOUT_SPACE=NO_SPACE",
+                    "WITH_SPACE=VALUE WITH SPACES",
+                    "MULTIPLE_EQUALS=VALUE=WITH=EQUALS"
+                ]
+    ''')
+    client.save({"conanfile.py": conanfile})
+    client.run("create . -s arch=x86_64")
+    
+    client.run("install --requires=test-nmakedeps-quoting/1.0 -g NMakeDeps -s build_type=Release -s arch=x86_64")
+    bat_file = client.load("conannmakedeps.bat")
+    
+    for flag in (r"/DWITHOUT_SPACE#NO_SPACE", 
+                 r'/DWITH_SPACE#"VALUE WITH SPACES"',
+                 r"/DMULTIPLE_EQUALS#VALUE#WITH#EQUALS"):
+        assert re.search(fr'set "CL=%CL%.*\s{flag}(?:\s|")', bat_file)
+        
+    assert r'\"' not in bat_file
