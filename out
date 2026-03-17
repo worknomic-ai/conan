@@ -1,0 +1,72 @@
+pkg/0.1:
+  ref: pkg/0.1
+  id: 0
+  recipe: Consumer
+  package_id: da39a3ee5e6b4b0d3255bfef95601890afd80709
+  prev: None
+  rrev: None
+  rrev_timestamp: None
+  prev_timestamp: None
+  remote: None
+  binary_remote: None
+  build_id: None
+  binary: None
+  invalid_build: False
+  info_invalid: None
+  name: pkg
+  user: None
+  channel: None
+  url: None
+  license: None
+  author: None
+  description: None
+  homepage: None
+  build_policy: None
+  upload_policy: None
+  revision_mode: hash
+  provides: None
+  deprecated: None
+  win_bash: None
+  win_bash_run: None
+  default_options: None
+  options_description: None
+  version: 0.1
+  topics: None
+  package_type: unknown
+  settings:
+  options:
+  options_definitions:
+  generators: []
+  python_requires: None
+  system_requires:
+  recipe_folder: /tmp/hivolve/75a98f1e-be7/member-6cbc3fa4-41c
+  source_folder: None
+  build_folder: None
+  generators_folder: None
+  package_folder: None
+  cpp_info:
+    root:
+      includedirs: ['include']
+      srcdirs: None
+      libdirs: ['lib']
+      resdirs: None
+      bindirs: ['bin']
+      builddirs: None
+      frameworkdirs: None
+      system_libs: None
+      frameworks: None
+      libs: None
+      defines: None
+      cflags: None
+      cxxflags: None
+      sharedlinkflags: None
+      exelinkflags: None
+      objects: None
+      sysroot: None
+      requires: None
+      properties: None
+  conf_info:
+  label: conanfile.py (pkg/0.1)
+  dependencies:
+  context: host
+  test: False
