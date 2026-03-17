@@ -1,13 +1,54 @@
-from conan.api.output import ConanOutput
+from conan.api.output import ConanOutput, cli_out_write
 from conans.client.graph.graph_error import GraphConflictError, GraphMissingError
 from conans.client.graph.graph import BINARY_MISSING
+
+def _get_path(node):
+    path = []
+    current = node
+    while current:
+        path.append(current)
+        if not current.dependants:
+            break
+        current = current.dependants[0].src
+    return list(reversed(path))
+
+def _format_path(path, require):
+    res = " -> ".join(str(n.ref) if n.ref else n.conanfile.display_name for n in path)
+    if require:
+        res += f" -> {require.ref}"
+    return res
 
 def print_graph_explain(result):
     error = result.get("error")
     if error:
         ConanOutput().info("Graph error explanation:")
         if isinstance(error, GraphConflictError):
-            ConanOutput().info("  Conflict detected")
+            cli_out_write("  Conflict detected:")
+            
+            node = error.node
+            require = error.require
+            prev_node = error.prev_node
+            prev_require = error.prev_require
+            base_previous = error.base_previous
+            
+            path1 = _get_path(node)
+            path1_str = _format_path(path1, require)
+            
+            if prev_node:
+                if prev_node.dependants:
+                    prev_parent = prev_node.dependants[0].src
+                    path2 = _get_path(prev_parent)
+                    path2_str = _format_path(path2, prev_require)
+                else:
+                    path2 = _get_path(prev_node)
+                    path2_str = _format_path(path2, prev_require)
+            else:
+                path2 = _get_path(base_previous)
+                path2_str = _format_path(path2, prev_require)
+                
+            cli_out_write(f"    {path2_str}")
+            cli_out_write(f"    {path1_str}")
+            
         elif isinstance(error, GraphMissingError):
             ConanOutput().info("  Missing dependency detected")
         else:
@@ -20,14 +61,14 @@ def print_graph_explain(result):
     missing_binaries = [n for n in graph.nodes if getattr(n, "binary", None) == BINARY_MISSING]
     
     if not missing_binaries:
-        ConanOutput().info("Graph explanation: No errors found")
+        cli_out_write("Graph explanation: No errors found")
         return
 
-    ConanOutput().info("Graph explanation: Missing binaries found")
+    cli_out_write("Graph explanation: Missing binaries found")
     remotes = conan_api.remotes.list()
 
     for node in missing_binaries:
-        ConanOutput().info(f"  Missing binary for: {node.ref}")
+        cli_out_write(f"  Missing binary for: {node.ref}")
         
         # Query packages from cache and all remotes
         packages = conan_api.list.packages_configurations(node.ref, remote=None)
@@ -39,7 +80,7 @@ def print_graph_explain(result):
                 pass
                 
         if not packages:
-            ConanOutput().info("    No packages found for this recipe.")
+            cli_out_write("    No packages found for this recipe.")
             continue
             
         try:
@@ -76,7 +117,7 @@ def print_graph_explain(result):
                 
         if mismatches:
             for m in mismatches:
-                ConanOutput().info(f"    {m}")
+                cli_out_write(f"    {m}")
         else:
-            ConanOutput().info("    No exact settings/options mismatch found (could be missing due to profile or package ID mode).")
+            cli_out_write("    No exact settings/options mismatch found (could be missing due to profile or package ID mode).")
 
