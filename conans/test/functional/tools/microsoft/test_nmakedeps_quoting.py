@@ -35,14 +35,10 @@ def test_nmakedeps_quoting():
         """)
 
     makefile = textwrap.dedent("""\
-        !if exist(conan_toolchain.mak)
-        !include conan_toolchain.mak
-        !endif
-
         all: main.exe
 
         main.exe: main.cpp
-        \tcl.exe main.cpp $(conan_cxxflags) /Fe$@
+        \tcl.exe main.cpp /Fe$@
         """)
 
     main_cpp = textwrap.dedent("""\
