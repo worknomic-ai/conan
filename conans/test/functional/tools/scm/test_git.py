@@ -136,6 +136,7 @@ class TestGitIsDirty:
             mock_run.assert_any_call("git status . -s")
 
 
+@pytest.mark.tool("git")
 class TestGitCaptureSCM:
     """ test the get_url_and_commit() high level method intended for SCM capturing
     into conandata.yaml
