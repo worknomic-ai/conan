@@ -1,0 +1,21 @@
+diff --git a/conan/api/subapi/config.py b/conan/api/subapi/config.py
+index 22e30fd53..a71541d48 100644
+--- a/conan/api/subapi/config.py
++++ b/conan/api/subapi/config.py
+@@ -8,7 +8,7 @@ from conan import conan_version
+ from conan.internal.api import detect_api
+ from conan.internal.cache.home_paths import HomePaths
+ from conan.internal.conan_app import ConanApp
+-from conans.model.conf import ConfDefinition
++from conans.model.conf import ConfDefinition, BUILT_IN_CONFS
+ from conans.util.files import load, save
+ 
+ 
+@@ -68,3 +68,7 @@ class ConfigAPI:
+                     """)
+                 save(global_conf_path, default_global_conf)
+         return self._new_config
++
++    @property
++    def builtin_confs(self):
++        return BUILT_IN_CONFS
