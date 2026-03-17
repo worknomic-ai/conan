@@ -4,8 +4,8 @@ import shutil
 from conan.internal.cache.home_paths import HomePaths
 from conan.api.output import ConanOutput
 from conans.client.loader import load_python_file
-from conans.errors import ConanException
-from conans.util.files import rmdir, mkdir
+from conans.errors import ConanException, conanfile_exception_formatter
+from conans.util.files import rmdir, mkdir, chdir
 
 
 def _find_deployer(d, cache_deploy_folder):
@@ -40,6 +40,13 @@ def _find_deployer(d, cache_deploy_folder):
 def do_deploys(conan_api, graph, deploy, deploy_folder):
     mkdir(deploy_folder)
     # Handle the deploys
+    conanfile = graph.root.conanfile
+    if hasattr(conanfile, "deploy"):
+        conanfile.output.highlight("Calling deploy()")
+        conanfile.deploy_folder = deploy_folder
+        with chdir(deploy_folder):
+            with conanfile_exception_formatter(conanfile, "deploy"):
+                conanfile.deploy()
     cache = HomePaths(conan_api.cache_folder)
     for d in deploy or []:
         deployer = _find_deployer(d, cache.deployers_path)
@@ -65,11 +72,14 @@ def full_deploy(graph, output_folder):
             folder_name = os.path.join(folder_name, build_type)
         if arch:
             folder_name = os.path.join(folder_name, arch)
-        _deploy_single(dep, conanfile, output_folder, folder_name)
+        _deploy_single(dep, conanfile, output_folder, dst=folder_name)
 
 
-def _deploy_single(dep, conanfile, output_folder, folder_name):
-    new_folder = os.path.join(output_folder, folder_name)
+def _deploy_single(dep, conanfile, output_folder, dst):
+    if os.path.isabs(dst):
+        new_folder = dst
+    else:
+        new_folder = os.path.join(output_folder, dst)
     rmdir(new_folder)
     symlinks = conanfile.conf.get("tools.deployer:symlinks", check_type=bool, default=True)
     try:
@@ -96,4 +106,4 @@ def direct_deploy(graph, output_folder):
     # dependency, the "reference" package. If the argument is a local path, then all direct
     # dependencies
     for dep in conanfile.dependencies.filter({"direct": True}).values():
-        _deploy_single(dep, conanfile, output_folder, dep.ref.name)
+        _deploy_single(dep, conanfile, output_folder, dst=dep.ref.name)

@@ -109,3 +109,50 @@ def test_back_migrations():
         assert not os.path.exists(os.path.join(t.cache_folder, f"file{number}.txt"))
         migration_file = os.path.join(t.cache_folder, "migrations", f"2.100.0_{number}-migrate.py")
         assert not os.path.exists(migration_file)
+
+def test_migration_lru_custom_storage_path():
+    t2 = TestClient()
+    t2.run("version")
+    
+    storage_folder = os.path.join(t2.cache_folder, "my_custom_storage")
+    os.makedirs(storage_folder)
+    
+    save(t2.cache.new_config_path, f'core.cache:storage_path={storage_folder}\n')
+    
+    # Run a command to create the DB in the new custom storage path
+    t2.run("list *")
+    
+    # Assert DB is created there
+    db = os.path.join(storage_folder, 'cache.sqlite3')
+    assert os.path.exists(db)
+    
+    # Now drop LRU column in the custom storage path DB
+    connection = sqlite3.connect(db, isolation_level=None, timeout=1, check_same_thread=False)
+    rec_cols = 'reference, rrev, path, timestamp'
+    pkg_cols = 'reference, rrev, pkgid, prev, path, timestamp, build_id'
+    try:
+        for table in ("recipes", "packages"):
+            columns = pkg_cols if table == "packages" else rec_cols
+            connection.execute(f"CREATE TABLE {table}_backup AS SELECT {columns} FROM {table};")
+            connection.execute(f"DROP TABLE {table};")
+            connection.execute(f"ALTER TABLE {table}_backup RENAME TO {table};")
+    finally:
+        connection.close()
+        
+    # Let's change the version to trigger migration
+    version_txt_file_path = os.path.join(t2.cache_folder, "version.txt")
+    save(version_txt_file_path, "1.0.0")
+    
+    # Trigger the migrations
+    t2.run("list *")
+    assert "WARN: Running 2.0.14 Cache DB migration to add LRU column" in t2.out
+    
+    # Check that LRU column is back
+    connection = sqlite3.connect(db, isolation_level=None, timeout=1, check_same_thread=False)
+    try:
+        cursor = connection.cursor()
+        cursor.execute("PRAGMA table_info(recipes)")
+        columns = [col[1] for col in cursor.fetchall()]
+        assert "lru" in columns
+    finally:
+        connection.close()

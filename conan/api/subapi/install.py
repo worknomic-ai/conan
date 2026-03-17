@@ -61,7 +61,7 @@ class InstallAPI:
         conanfile.folders.set_base_folders(source_folder, output_folder)
 
         # The previous .set_base_folders has already decided between the source_folder and output
-        if deploy:
+        if deploy or hasattr(conanfile, "deploy"):
             base_folder = deploy_folder or conanfile.folders.base_build
             do_deploys(self.conan_api, deps_graph, deploy, base_folder)
 

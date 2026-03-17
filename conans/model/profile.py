@@ -18,6 +18,10 @@ class Profile(object):
         self.options = Options()
         self.tool_requires = OrderedDict()  # ref pattern: list of ref
         self.system_tools = []
+        self.replace_requires = OrderedDict()
+        self.replace_tool_requires = OrderedDict()
+        self.platform_requires = []
+        self.platform_tool_requires = []
         self.conf = ConfDefinition()
         self.buildenv = ProfileEnvironment()
         self.runenv = ProfileEnvironment()
@@ -87,9 +91,27 @@ class Profile(object):
             for pattern, req_list in self.tool_requires.items():
                 result.append("%s: %s" % (pattern, ", ".join(str(r) for r in req_list)))
 
+        if self.replace_requires:
+            result.append("[replace_requires]")
+            for pattern, req_list in self.replace_requires.items():
+                result.append("%s: %s" % (pattern, ", ".join(str(r) for r in req_list)))
+
+        if self.replace_tool_requires:
+            result.append("[replace_tool_requires]")
+            for pattern, req_list in self.replace_tool_requires.items():
+                result.append("%s: %s" % (pattern, ", ".join(str(r) for r in req_list)))
+
         if self.system_tools:
             result.append("[system_tools]")
             result.extend(str(t) for t in self.system_tools)
+
+        if self.platform_requires:
+            result.append("[platform_requires]")
+            result.extend(str(t) for t in self.platform_requires)
+
+        if self.platform_tool_requires:
+            result.append("[platform_tool_requires]")
+            result.extend(str(t) for t in self.platform_tool_requires)
 
         if self.conf:
             result.append("[conf]")
@@ -112,25 +134,40 @@ class Profile(object):
         self.update_settings(other.settings)
         self.update_package_settings(other.package_settings)
         self.options.update_options(other.options)
+        
+        def _compose_requires(self_reqs, other_reqs):
+            for pattern, req_list in other_reqs.items():
+                existing_build_requires = self_reqs.get(pattern)
+                existing = OrderedDict()
+                if existing_build_requires is not None:
+                    for br in existing_build_requires:
+                        # TODO: Understand why sometimes they are str and other are RecipeReference
+                        r = RecipeReference.loads(br) \
+                             if not isinstance(br, RecipeReference) else br
+                        existing[r.name] = br
+                for req in req_list:
+                    r = RecipeReference.loads(req) \
+                         if not isinstance(req, RecipeReference) else req
+                    existing[r.name] = req
+                self_reqs[pattern] = list(existing.values())
+        
         # It is possible that build_requires are repeated, or same package but different versions
-        for pattern, req_list in other.tool_requires.items():
-            existing_build_requires = self.tool_requires.get(pattern)
-            existing = OrderedDict()
-            if existing_build_requires is not None:
-                for br in existing_build_requires:
-                    # TODO: Understand why sometimes they are str and other are RecipeReference
-                    r = RecipeReference.loads(br) \
-                         if not isinstance(br, RecipeReference) else br
-                    existing[r.name] = br
-            for req in req_list:
-                r = RecipeReference.loads(req) \
-                     if not isinstance(req, RecipeReference) else req
-                existing[r.name] = req
-            self.tool_requires[pattern] = list(existing.values())
+        _compose_requires(self.tool_requires, other.tool_requires)
+        _compose_requires(self.replace_requires, other.replace_requires)
+        _compose_requires(self.replace_tool_requires, other.replace_tool_requires)
 
         current_system_tools = {r.name: r for r in self.system_tools}
         current_system_tools.update({r.name: r for r in other.system_tools})
         self.system_tools = list(current_system_tools.values())
+
+        current_platform_requires = {r.name: r for r in self.platform_requires}
+        current_platform_requires.update({r.name: r for r in other.platform_requires})
+        self.platform_requires = list(current_platform_requires.values())
+
+        current_platform_tool_requires = {r.name: r for r in self.platform_tool_requires}
+        current_platform_tool_requires.update({r.name: r for r in other.platform_tool_requires})
+        self.platform_tool_requires = list(current_platform_tool_requires.values())
+
         self.conf.update_conf_definition(other.conf)
         self.buildenv.update_profile_env(other.buildenv)  # Profile composition, last has priority
         self.runenv.update_profile_env(other.runenv)

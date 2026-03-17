@@ -1,6 +1,7 @@
 import os
 import platform
 import textwrap
+import pytest
 
 from conans.test.assets.genconanfile import GenConanfile
 from conans.test.utils.tools import TestClient
@@ -707,3 +708,63 @@ def test_cmakedeps_set_property_overrides():
     assert 'set(dep_NO_SONAME_MODE_RELEASE TRUE)' in dep
     other = c.load("app/other-release-data.cmake")
     assert 'set(other_other_mycomp1_NO_SONAME_MODE_RELEASE TRUE)' in other
+
+
+def test_conandeps_feature():
+    client = TestClient()
+    
+    # dep1
+    client.save({
+        "conanfile.py": textwrap.dedent('''
+            import os
+            from conan import ConanFile
+
+            class Dep1(ConanFile):
+                name = "dep1"
+                version = "1.0"
+                settings = "os", "compiler", "build_type", "arch"
+
+                def package_info(self):
+                    self.cpp_info.libs = ["dep1"]
+            ''')
+    })
+    client.run("create .")
+    
+    # dep2
+    client.save({
+        "conanfile.py": textwrap.dedent('''
+            import os
+            from conan import ConanFile
+
+            class Dep2(ConanFile):
+                name = "dep2"
+                version = "1.0"
+                settings = "os", "compiler", "build_type", "arch"
+                requires = "dep1/1.0"
+
+                def package_info(self):
+                    self.cpp_info.libs = ["dep2"]
+            ''')
+    }, clean_first=True)
+    client.run("create .")
+
+    # consumer
+    consumer = textwrap.dedent('''
+        import os
+        from conan import ConanFile
+
+        class Consumer(ConanFile):
+            name = "consumer"
+            version = "1.0"
+            settings = "os", "compiler", "build_type", "arch"
+            requires = "dep2/1.0"
+            generators = "CMakeDeps"
+        ''')
+
+    client.save({"conanfile.py": consumer}, clean_first=True)
+    
+    client.run("install .")
+    
+    conandeps = client.load("conandeps.cmake")
+    assert "find_package(dep2 REQUIRED CONFIG)" in conandeps
+    assert "dep1" not in conandeps  # dep1 is transitive

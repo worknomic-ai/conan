@@ -443,5 +443,7 @@ def test_export_json():
     c.save({"conanfile.py": GenConanfile()})
     c.run("export . --name=foo --version=0.1 --format json")
     info = json.loads(c.stdout)
-    assert info["reference"] == "foo/0.1#4d670581ccb765839f2239cc8dff8fbd"
-    assert len(info) == 1  # Only "reference" key yet
+    assert "Local Cache" in info
+    assert "foo/0.1" in info["Local Cache"]
+    assert "revisions" in info["Local Cache"]["foo/0.1"]
+    assert "4d670581ccb765839f2239cc8dff8fbd" in info["Local Cache"]["foo/0.1"]["revisions"]
