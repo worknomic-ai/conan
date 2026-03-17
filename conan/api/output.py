@@ -63,11 +63,11 @@ class ConanOutput:
 
     @classmethod
     def define_silence_warnings(cls, warnings):
-        cls._silent_warn_tags = warnings
+        cls._silent_warn_tags = warnings or []
 
     @classmethod
     def set_warnings_as_errors(cls, value):
-        cls._warnings_as_errors = value
+        cls._warnings_as_errors = value or []
 
     @classmethod
     def define_log_level(cls, v):
