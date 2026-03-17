@@ -707,3 +707,34 @@ def test_cmakedeps_set_property_overrides():
     assert 'set(dep_NO_SONAME_MODE_RELEASE TRUE)' in dep
     other = c.load("app/other-release-data.cmake")
     assert 'set(other_other_mycomp1_NO_SONAME_MODE_RELEASE TRUE)' in other
+
+def test_conandeps_feature():
+    client = TestClient()
+    client.save({"conanfile.py": GenConanfile("dep1", "1.0")})
+    client.run("create .")
+    
+    client.save({"conanfile.py": GenConanfile("dep2", "1.0").with_require("dep1/1.0")})
+    client.run("create .")
+
+    consumer = textwrap.dedent("""
+        from conan import ConanFile
+        from conan.tools.cmake import CMakeDeps
+
+        class Consumer(ConanFile):
+            name = "consumer"
+            version = "1.0"
+            settings = "os", "compiler", "build_type", "arch"
+            requires = "dep2/1.0"
+
+            def generate(self):
+                deps = CMakeDeps(self)
+                deps.generate()
+        """)
+
+    client.save({"conanfile.py": consumer}, clean_first=True)
+    
+    client.run("install .")
+    
+    conandeps = client.load("conandeps.cmake")
+    assert "find_package(dep2 REQUIRED CONFIG)" in conandeps
+    assert "dep1" not in conandeps  # dep1 is transitive
