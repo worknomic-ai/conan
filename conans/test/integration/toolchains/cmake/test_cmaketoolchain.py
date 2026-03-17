@@ -1186,3 +1186,43 @@ def test_avoid_ovewrite_user_cmakepresets():
     c.run('install . -g CMakeToolchain', assert_error=True)
     assert "Error in generator 'CMakeToolchain': Existing CMakePresets.json not generated" in c.out
     assert "Use --output-folder or define a 'layout' to avoid collision" in c.out
+
+
+def test_cmake_policy_cmp0091_msvc_runtime():
+    # Test that CMakeToolchain generates policy CMP0091 suppression and no fatal error on older CMakes
+    c = TestClient()
+    conanfile = textwrap.dedent("""
+        from conan import ConanFile
+        from conan.tools.cmake import CMakeToolchain
+
+        class Conan(ConanFile):
+            name = "pkg"
+            version = "0.1"
+            settings = "os", "arch", "build_type", "compiler"
+            def generate(self):
+                tc = CMakeToolchain(self)
+                tc.generate()
+        """)
+    
+    # We need to simulate Windows MSVC to trigger VSRuntimeBlock
+    profile = textwrap.dedent("""
+        [settings]
+        os=Windows
+        arch=x86_64
+        compiler=msvc
+        compiler.version=192
+        compiler.runtime=dynamic
+        compiler.runtime_type=Release
+        build_type=Release
+        """)
+    c.save({"conanfile.py": conanfile, "profile": profile})
+    c.run('install . -pr=profile')
+    toolchain = c.load("conan_toolchain.cmake")
+    
+    # Verify the FATAL_ERROR for CMake < 3.15 is gone
+    assert "The 'CMakeToolchain' generator only works with CMake >= 3.15" not in toolchain
+    
+    # Verify the suppression logic is properly guarded
+    assert "if(POLICY CMP0091)" in toolchain
+    assert "cmake_policy(SET CMP0091 NEW)" in toolchain
+    assert "set(CMAKE_MSVC_RUNTIME_LIBRARY" in toolchain
