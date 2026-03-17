@@ -232,6 +232,22 @@ class DepsGraphBuilder(object):
         return new_ref, dep_conanfile, recipe_status, remote
 
     @staticmethod
+    def _create_system_tool_conanfile(ref):
+        conanfile = ConanFile(str(ref))
+        conanfile.cpp_info.includedirs = []
+        conanfile.cpp_info.libdirs = []
+        conanfile.cpp_info.bindirs = []
+        conanfile.cpp_info.frameworkdirs = []
+        conanfile.cpp_info.set_property("cmake_find_mode", "none")
+        conanfile.cpp_info.set_property("pkg_config_custom_content", "")
+        # Prevents generators like PkgConfigDeps and CMakeDeps from crashing
+        # when they try to access package_folder or recipe_folder
+        conanfile.folders.set_base_package("")
+        conanfile.folders.set_base_source("")
+        conanfile.recipe_folder = ""
+        return conanfile
+
+    @staticmethod
     def _resolved_system_tool(node, require, profile_build, profile_host, resolve_prereleases):
         profile = profile_build if node.context == CONTEXT_BUILD else profile_host
         
@@ -249,12 +265,12 @@ class DepsGraphBuilder(object):
                     if version_range:
                         if version_range.contains(d.version, resolve_prereleases):
                             require.ref.version = d.version  # resolved range is replaced by exact
-                            return d, ConanFile(str(d)), RECIPE_SYSTEM_TOOL, None
+                            return d, DepsGraphBuilder._create_system_tool_conanfile(d), RECIPE_SYSTEM_TOOL, None
                     elif require.ref.version == d.version:
                         if d.revision is None or require.ref.revision is None or \
                                 d.revision == require.ref.revision:
                             require.ref.revision = d.revision
-                            return d, ConanFile(str(d)), RECIPE_SYSTEM_TOOL, None
+                            return d, DepsGraphBuilder._create_system_tool_conanfile(d), RECIPE_SYSTEM_TOOL, None
 
     def _create_new_node(self, node, require, graph, profile_host, profile_build, graph_lock):
         if require.ref.version == "<host_version>":
