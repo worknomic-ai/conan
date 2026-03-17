@@ -972,6 +972,42 @@ class TestBuildTrackHost:
         c.assert_listed_require({"protobuf/1.1": "Cache"}, build=True)
 
 
+
+    def test_overriden_host_version_explicit_package(self):
+        """
+        Make the tool_requires follow the regular require with the expression "<host_version:pkg_name>"
+        """
+        c = TestClient()
+        c.save({"protobuf/conanfile.py": GenConanfile("protobuf"),
+                "pkg/conanfile.py": GenConanfile("pkg", "0.1").with_requirement("protobuf/[>=1.0]"),
+                "app/conanfile.py": GenConanfile().with_requires("pkg/0.1").with_tool_requirement("protobuf/<host_version:pkg>")})
+        c.run("create protobuf --version=1.0")
+        c.run("create protobuf --version=1.1")
+        c.run("create pkg")
+        c.run("install pkg")  # make sure it doesn't crash
+        c.run("install app", assert_error=True)
+        assert "ERROR: Package 'protobuf/0.1' not resolved" in c.out
+
+        c.save({"app/conanfile.py": GenConanfile().with_requires("pkg/0.1").with_tool_requirement("protobuf/<host_version:doesnotexist>")})
+        c.run("install app", assert_error=True)
+        assert "require 'protobuf/<host_version:doesnotexist>': didn't find a matching host dependency for 'doesnotexist'" in c.out
+
+        c.save({"app/conanfile.py": GenConanfile().with_requires("pkg/0.1").with_tool_requirement("protobuf/<host_version:protobuf>")})
+        c.run("install app")
+        c.assert_listed_require({"protobuf/1.1": "Cache"})
+        c.assert_listed_require({"protobuf/1.1": "Cache"}, build=True)
+        # verify locks work
+        c.run("lock create app")
+        import json
+        lock = json.loads(c.load("app/conan.lock"))
+        build_requires = lock["build_requires"]
+        assert len(build_requires) == 1
+        assert "protobuf/1.1" in build_requires[0]
+        # lock can be used
+        c.run("install app --lockfile=app/conan.lock")
+        c.assert_listed_require({"protobuf/1.1": "Cache"}, build=True)
+
+
 def test_build_missing_build_requires():
     c = TestClient()
     c.save({"tooldep/conanfile.py": GenConanfile("tooldep", "0.1"),
