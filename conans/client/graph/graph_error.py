@@ -15,6 +15,8 @@ class GraphConflictError(GraphError):
         self.base_previous = base_previous
 
     def __str__(self):
+        # Do not escape brackets for version ranges (e.g. [>=1.0 <2.0])
+        # ConanOutput does not parse markup by default.
         if self.node.ref is not None and self.base_previous.ref is not None:
             return f"Version conflict: {self.node.ref}->{self.require.ref}, " \
                    f"{self.base_previous.ref}->{self.prev_require.ref}."
@@ -38,6 +40,8 @@ class GraphLoopError(GraphError):
         self.ancestor = ancestor
 
     def __str__(self):
+        # Do not escape brackets for version ranges (e.g. [>=1.0 <2.0])
+        # ConanOutput does not parse markup by default.
         return "There is a cycle/loop in the graph:\n" \
                f"    Initial ancestor: {self.ancestor}\n" \
                f"    Require: {self.require.ref}\n" \
@@ -52,6 +56,8 @@ class GraphMissingError(GraphError):
         self.missing_error = missing_error
 
     def __str__(self):
+        # Do not escape brackets for version ranges (e.g. [>=1.0 <2.0])
+        # ConanOutput does not parse markup by default.
         return f"Package '{self.require.ref}' not resolved: {self.missing_error}."
 
 
@@ -63,6 +69,8 @@ class GraphProvidesError(GraphError):
         node.error = conflicting_node.error
 
     def __str__(self):
+        # Do not escape brackets for version ranges (e.g. [>=1.0 <2.0])
+        # ConanOutput does not parse markup by default.
         return f"Provide Conflict: Both '{self.node.ref}' and '{self.conflicting_node.ref}' " \
                f"provide '{self.node.conanfile.provides}'."
 
@@ -74,5 +82,7 @@ class GraphRuntimeError(GraphError):
         self.conflicting_node = conflicting_node
 
     def __str__(self):
+        # Do not escape brackets for version ranges (e.g. [>=1.0 <2.0])
+        # ConanOutput does not parse markup by default.
         return f"Runtime Error: Could not process '{self.node.ref}' with " \
                f"'{self.conflicting_node.ref}'."
