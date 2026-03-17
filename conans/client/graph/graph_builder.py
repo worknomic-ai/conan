@@ -243,24 +243,20 @@ class DepsGraphBuilder(object):
             if version.startswith("<host_version:"):
                 pkg_name = version.split(":", 1)[1].split(">")[0]
                 req = Requirement(RecipeReference(pkg_name), headers=True, libs=True, visible=True)
-                transitive = node.transitive_deps.get(req)
-                if transitive is None:
-                    raise ConanException(f"{node.ref} require '{require.ref}': didn't find a matching "
-                                         f"host dependency for '{pkg_name}'")
-                require.ref = RecipeReference(require.ref.name,
-                                              transitive.require.ref.version,
-                                              transitive.require.ref.user,
-                                              transitive.require.ref.channel)
+                error_msg = f" for '{pkg_name}'"
             else:
                 req = Requirement(require.ref, headers=True, libs=True, visible=True)
-                transitive = node.transitive_deps.get(req)
-                if transitive is None:
-                    raise ConanException(f"{node.ref} require '{require.ref}': didn't find a matching "
-                                         "host dependency")
-                require.ref = RecipeReference(require.ref.name,
-                                              transitive.require.ref.version,
-                                              transitive.require.ref.user,
-                                              transitive.require.ref.channel)
+                error_msg = ""
+            
+            transitive = node.transitive_deps.get(req)
+            if transitive is None:
+                raise ConanException(f"{node.ref} require '{require.ref}': didn't find a matching "
+                                     f"host dependency{error_msg}")
+            
+            require.ref = RecipeReference(require.ref.name,
+                                          transitive.require.ref.version,
+                                          transitive.require.ref.user,
+                                          transitive.require.ref.channel)
 
         if graph_lock is not None:
             # Here is when the ranges and revisions are resolved
