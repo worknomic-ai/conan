@@ -232,7 +232,7 @@ def test_graph_info_html_bfs_filtering():
     from conan.api.conan_api import ConanAPI
     from conans.model.recipe_ref import RecipeReference
     from conan.cli.formatters.graph.graph import format_graph_html
-    import mock
+    from unittest import mock
     import sys
     from io import StringIO
 
