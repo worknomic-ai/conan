@@ -37,7 +37,7 @@ class Profile(object):
                 v = v.dumps()
 
             if isinstance(v, dict):
-                return {k: _to_serializable(val) for k, val in v.items()}
+                return {k if isinstance(k, (str, int, float, bool, type(None))) else repr(k): _to_serializable(val) for k, val in v.items()}
             if isinstance(v, (list, tuple, set)):
                 return [_to_serializable(val) for val in v]
             if isinstance(v, (str, int, float, bool, type(None))):
